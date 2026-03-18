@@ -1,0 +1,17 @@
+features:
+  sample_rate: 8000
+  mfcc:
+    n_mfcc: 13  # Только 13, не 20
+    n_fft: 512
+    hop_length: 256
+    win_length: 512
+  spectral:
+    compute_centroid: true
+    compute_bandwidth: true
+    compute_rolloff: true
+  prosodic:
+    compute_zcr: true
+    compute_rms: true
+    compute_tempo: true
+  chroma:
+    n_chroma: 6  # Явно указываем 6

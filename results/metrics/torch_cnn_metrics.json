@@ -1,0 +1,26 @@
+{
+  "model": "Torch_cnn",
+  "accuracy": 0.8528901734104046,
+  "precision_human": 0.8528901734104046,
+  "recall_human": 1.0,
+  "f1_human": 0.9206052097956637,
+  "precision_robot": 0.0,
+  "recall_robot": 0.0,
+  "f1_robot": 0.0,
+  "robot_f1": 0.0,
+  "class_weights": [
+    0.5862807756554579,
+    3.397516835016835
+  ],
+  "confusion_matrix": [
+    [
+      2951,
+      0
+    ],
+    [
+      509,
+      0
+    ]
+  ],
+  "device": "cuda:0"
+}

@@ -1,0 +1,10 @@
+paths:
+  project_root: ./
+  data_root: ./data
+  audio_root: ./data/audio
+  processed_root: ./data/processed
+  splits_root: ./data/splits
+  models_root: ./results/trained_models
+  metrics_root: ./results/metrics
+  plots_root: ./results/plots
+  manual_checks: ./results/manual_checks

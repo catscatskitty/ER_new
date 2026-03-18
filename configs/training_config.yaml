@@ -1,0 +1,23 @@
+training:
+  random_seed: 42
+  train_ratio: 0.8
+  val_ratio: 0.1
+  test_ratio: 0.1
+  
+  gpu:
+    enabled: true
+    device: "0"
+    mixed_precision:
+      enabled: true
+      policy: "float16"
+  
+  deep_learning:
+    batch_size: 64
+    epochs: 50
+    early_stopping_patience: 3
+    learning_rate: 0.005
+    optimizer: "adam"
+  
+  class_weights:
+    enabled: true
+    mode: "balanced"

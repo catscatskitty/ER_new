@@ -1,0 +1,49 @@
+# Конфигурация моделей
+
+traditional:
+  logistic:
+    C: 1.0
+    max_iter: 1000
+    class_weight: 'balanced'
+    
+  random_forest:
+    n_estimators: 100
+    max_depth: 10
+    class_weight: 'balanced'
+    
+  xgboost:
+    n_estimators: 100
+    max_depth: 6
+    learning_rate: 0.1
+    
+  catboost:
+    iterations: 100
+    depth: 6
+    learning_rate: 0.1
+
+deep_learning:
+  cnn:
+    input_dim: 38
+    dropout: 0.5
+    
+  lstm:
+    input_size: 38
+    hidden_size: 128
+    num_layers: 2
+    dropout: 0.3
+    bidirectional: true
+    
+  hybrid:
+    input_dim: 38
+    hidden_size: 64
+    dropout: 0.3
+    
+  multimodal:
+    acoustic_dim: 38
+    linguistic_dim: 80
+    fusion_dim: 128
+    dropout: 0.3
+
+ensemble:
+  voting: ['soft', 'hard']
+  stacking_cv: 5

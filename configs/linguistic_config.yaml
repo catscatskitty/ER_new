@@ -1,0 +1,61 @@
+# Лингвистические признаки
+linguistic:
+  # Транскрибация
+  transcriber:
+    primary: "whisper"  # whisper, vosk, silero
+    whisper_model: "base"
+    vosk_model_path: "models/vosk-model-ru-0.42"
+    silero_model: "silero_stt"
+    
+  # Анализ
+  features:
+    pauses:
+      enabled: true
+      min_pause_duration: 0.15
+      max_pause_duration: 2.0
+      
+    filler_words:
+      enabled: true
+      list: ["э", "э-э", "м", "м-м", "ну", "типа", "как бы", "это самое", 
+             "короче", "в общем", "так сказать", "значит", "вообще", "блин"]
+      
+    morphological:
+      enabled: true
+      analyzer: "pymorphy2"
+      
+    syntactic:
+      enabled: true
+      analyzer: "spacy"
+      model: "ru_core_news_lg"
+      
+    lexical:
+      enabled: true
+      diversity_metrics: ["ttr", "mtld", "vocd"]
+      
+    semantic:
+      enabled: true
+      model: "LaBSE"
+      coherence_window: 3
+      
+    ner:
+      enabled: true
+      types: ["PER", "ORG", "LOC", "DATE", "TIME"]
+      
+    prosodic_text:
+      enabled: true
+      punctuation_stats: true
+      
+    sentiment:
+      enabled: true
+      model: "rubert-tiny-sentiment"
+      
+    errors:
+      enabled: true
+      check_grammar: true
+      check_naturalness: true
+      
+    profanity:
+      enabled: true
+      detector: "badd"
+      
+  total_features: 80

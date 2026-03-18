@@ -1,0 +1,34 @@
+{
+  "model": "cnn_combined",
+  "feature_type": "combined",
+  "train_shape": [
+    54767,
+    87
+  ],
+  "val_shape": [
+    11735,
+    87
+  ],
+  "test_shape": [
+    11738,
+    87
+  ],
+  "test_accuracy": 0.9057761117737264,
+  "test_f1": 0.9055114979125474,
+  "test_auc": 0.9676942415498667,
+  "confusion_matrix": [
+    [
+      5681,
+      289
+    ],
+    [
+      817,
+      4951
+    ]
+  ],
+  "best_val_accuracy": 0.9077119727311461,
+  "best_val_loss": 0.22289649214919494,
+  "best_epoch": 38,
+  "early_stopped_epoch": 48,
+  "feature_count": 87
+}
