@@ -1,81 +1,87 @@
-# Data - только аудиофайлы и аугментированные данные
-data/audio/
-data/processed/augmented_8khz/
-data/processed/augmented_8khz_v2/
-data/processed/augmented_final/
+# Игнорируем все аудиофайлы (оригинальные и обработанные)
+*.wav
+*.mp3
+*.flac
+*.ogg
+*.m4a
+*.aac
+*.opus
 
-# Python
+# Игнорируем данные, но оставляем структуру папок
+data/audio/
+data/processed/
+data/splits/
+!data/audio/.gitkeep
+!data/processed/.gitkeep
+!data/splits/.gitkeep
+
+# Игнорируем результаты обучения
+results/
+!results/.gitkeep
+
+# Игнорируем временные файлы и логи
+logs/
+temp/
+*.log
+*.tmp
+*.cache
+*.pid
+
+# Игнорируем виртуальное окружение
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Игнорируем кэш Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-pythonenv*
-pip-log.txt
-pip-delete-this-directory.txt
-.pytest_cache/
-.coverage
-htmlcov/
-.tox/
-.mypy_cache/
-.dmypy.json
-dmypy.json
-.pyre/
-.pytype/
-*.egg-info/
-dist/
-build/
-develop-eggs/
-downloads/
-eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg
-MANIFEST
-*.manifest
-*.spec
-installer.log
-pip-wheel-metadata/
-share/python-wheels/
 
-# IDE
+# Игнорируем файлы IDE
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 .DS_Store
-.project
-.pydevproject
-.settings/
-.classpath
-.factorypath
-*.launch
 
-# Logs
-logs/
-*.log
-*.log.*
+# Игнорируем Jupyter checkpoints
+.ipynb_checkpoints/
+*.ipynb_checkpoints/
 
-# Temp files
-temp/
-*.tmp
-*.temp
-*.cache
-*.pid
-*.seed
-*.pid.lock
+# Игнорируем файлы конфигурации с секретами
+*.key
+*.pem
+.env
+.env.local
 
-# Virtual environment
-venv/
-env/
-.env/
+# Игнорируем сгенерированные файлы
+*.pkl
+*.joblib
+*.h5
+*.pt
+*.pth
+*.onnx
+
+# Игнорируем большие архивы
+*.zip
+*.tar
+*.gz
+*.bz2
+*.7z
+*.rar
+
+# Игнорируем докер
+.dockerignore
+Dockerfile
+docker-compose*.yml
+.docker/
+
+# Игнорируем MLflow
+mlruns/
+mlartifacts/
