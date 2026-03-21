@@ -1,0 +1,22 @@
+{
+  "model": "CatBoost",
+  "feature_type": "combined",
+  "accuracy": 0.903728872625893,
+  "precision_human": 0.8973429951690821,
+  "recall_human": 0.9106986517247417,
+  "f1_human": 0.903971495611367,
+  "precision_robot": 0.9102428722280888,
+  "recall_robot": 0.8968267730189007,
+  "f1_robot": 0.9034850205258101,
+  "robot_f1": 0.9034850205258101,
+  "confusion_matrix": [
+    [
+      5201,
+      510
+    ],
+    [
+      595,
+      5172
+    ]
+  ]
+}

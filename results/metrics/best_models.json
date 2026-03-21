@@ -1,0 +1,54 @@
+{
+  "best_accuracy": {
+    "model": "HYBRID",
+    "accuracy": 0.988150289017341,
+    "precision_human": 0.9938900203665988,
+    "recall_human": 0.9922060318536089,
+    "f1_human": 0.9930473121926403,
+    "precision_robot": 0.9552529182879378,
+    "recall_robot": 0.9646365422396856,
+    "f1_robot": 0.9599217986314761,
+    "robot_f1": 0.9599217986314761,
+    "confusion_matrix": [
+      [
+        2928,
+        23
+      ],
+      [
+        18,
+        491
+      ]
+    ],
+    "device": "cuda:0",
+    "class_weights": [
+      0.5862807756554579,
+      3.397516835016835
+    ]
+  },
+  "best_f1_robot": {
+    "model": "HYBRID",
+    "accuracy": 0.988150289017341,
+    "precision_human": 0.9938900203665988,
+    "recall_human": 0.9922060318536089,
+    "f1_human": 0.9930473121926403,
+    "precision_robot": 0.9552529182879378,
+    "recall_robot": 0.9646365422396856,
+    "f1_robot": 0.9599217986314761,
+    "robot_f1": 0.9599217986314761,
+    "confusion_matrix": [
+      [
+        2928,
+        23
+      ],
+      [
+        18,
+        491
+      ]
+    ],
+    "device": "cuda:0",
+    "class_weights": [
+      0.5862807756554579,
+      3.397516835016835
+    ]
+  }
+}

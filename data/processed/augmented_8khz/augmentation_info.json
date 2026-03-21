@@ -1,0 +1,28 @@
+{
+  "timestamp": "2026-03-16T22:09:13.854193",
+  "target_sr": 8000,
+  "original_files": {
+    "human": 9517,
+    "robot": 9611,
+    "total": 19128
+  },
+  "created_files": {
+    "human": 47585,
+    "robot": 48055,
+    "total": 95640
+  },
+  "augmentation_params": {
+    "noise_types": [
+      "white",
+      "pink",
+      "street",
+      "cafe"
+    ],
+    "snr_range": [
+      5,
+      20
+    ],
+    "apply_phone_codec": true
+  },
+  "force": true
+}

@@ -1,4 +1,4 @@
-# Игнорируем все аудиофайлы (оригинальные и обработанные)
+# Игнорируем только аудиофайлы (они большие и не нужны в репозитории)
 *.wav
 *.mp3
 *.flac
@@ -7,81 +7,29 @@
 *.aac
 *.opus
 
-# Игнорируем данные, но оставляем структуру папок
-data/audio/
-data/processed/
-data/splits/
-!data/audio/.gitkeep
-!data/processed/.gitkeep
-!data/splits/.gitkeep
-
-# Игнорируем результаты обучения
-results/
-!results/.gitkeep
-
-# Игнорируем временные файлы и логи
-logs/
-temp/
-*.log
-*.tmp
-*.cache
-*.pid
-
-# Игнорируем виртуальное окружение
-.venv/
+# Игнорируем виртуальное окружение (оно не должно быть в репозитории)
 venv/
+.venv/
 env/
 ENV/
-env.bak/
-venv.bak/
 
-# Игнорируем кэш Python
+# Игнорируем системные файлы и кэш
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-
-# Игнорируем файлы IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.DS_Store
-
-# Игнорируем Jupyter checkpoints
+*.pyc
+*.pyo
+.pytest_cache/
 .ipynb_checkpoints/
-*.ipynb_checkpoints/
+*.log
+.DS_Store
+Thumbs.db
 
-# Игнорируем файлы конфигурации с секретами
-*.key
-*.pem
-.env
-.env.local
-
-# Игнорируем сгенерированные файлы
-*.pkl
-*.joblib
-*.h5
-*.pt
-*.pth
-*.onnx
-
-# Игнорируем большие архивы
-*.zip
-*.tar
-*.gz
-*.bz2
-*.7z
-*.rar
-
-# Игнорируем докер
-.dockerignore
-Dockerfile
-docker-compose*.yml
-.docker/
-
-# Игнорируем MLflow
-mlruns/
-mlartifacts/
+# Всё остальное включаем в репозиторий:
+# - все скрипты (src/ и scripts/)
+# - конфиги (configs/)
+# - файлы разбиения (data/splits/)
+# - извлеченные признаки (data/processed/*.npy)
+# - обученные модели (results/trained_models/)
+# - метрики (results/metrics/)
+# - графики (results/plots/)
+# - ноутбуки (notebooks/)
+# - документацию и т.д.

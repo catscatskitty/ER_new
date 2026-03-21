@@ -1,0 +1,18 @@
+\begin{table}[htbp]
+\centering
+\caption{Сравнение моделей классификации}
+\begin{tabular}{lrrrrl}
+\toprule
+Модель & Accuracy & F1 (Human) & F1 (Robot) & Размер модели (MB) & Устройство \\
+\midrule
+CNN & 0.8524 & 0.8537 & 0.8511 & 0.6400 & GPU: NVIDIA GeForce RTX 4060 \\
+LSTM & 0.5024 & 0.0000 & 0.6688 & 2.6000 & GPU: NVIDIA GeForce RTX 4060 \\
+Hybrid CNN-LSTM & 0.5024 & 0.0000 & 0.6688 & 0.3000 & GPU: NVIDIA GeForce RTX 4060 \\
+Logistic Regression & 0.8623 & 0.8633 & 0.8614 & 0.0000 & CPU \\
+Random Forest & 0.8661 & 0.8705 & 0.8613 & 11.2300 & CPU \\
+XGBoost & 0.8872 & 0.8894 & 0.8849 & 0.4500 & CPU \\
+CatBoost & 0.8674 & 0.8702 & 0.8644 & 0.2200 & CPU \\
+\bottomrule
+\end{tabular}
+\label{tab:models_comparison}
+\end{table}

@@ -1,0 +1,25 @@
+{
+  "model": "xgboost_combined",
+  "feature_type": "combined",
+  "train_accuracy": 0.999415706538609,
+  "val_accuracy": 0.9374520664678313,
+  "test_accuracy": 0.9384051797580508,
+  "train_f1": 0.9994157023845223,
+  "val_f1": 0.9374097436593957,
+  "test_f1": 0.9383627549885568,
+  "train_auc": 0.9999982911612335,
+  "val_auc": 0.9840286066982568,
+  "test_auc": 0.9844682264768132,
+  "confusion_matrix": [
+    [
+      5720,
+      250
+    ],
+    [
+      473,
+      5295
+    ]
+  ],
+  "feature_count": 87,
+  "best_iteration": 714
+}
