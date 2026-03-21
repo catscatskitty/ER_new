@@ -1,21 +1,22 @@
 {
   "model": "Logistic Regression",
-  "accuracy": 0.8623453563338561,
-  "precision_human": 0.8533789563729683,
-  "recall_human": 0.8734022062686044,
-  "f1_human": 0.8632744894427138,
-  "precision_robot": 0.8716492100124268,
-  "recall_robot": 0.8513958730709208,
-  "f1_robot": 0.8614035087719298,
-  "robot_f1": 0.8614035087719298,
+  "feature_type": "combined",
+  "accuracy": 0.8822094441540338,
+  "precision_human": 0.8795054849381856,
+  "recall_human": 0.8844335492908423,
+  "f1_human": 0.8819626331412607,
+  "precision_robot": 0.8849171752397559,
+  "recall_robot": 0.8800069360152593,
+  "f1_robot": 0.8824552251782298,
+  "robot_f1": 0.8824552251782298,
   "confusion_matrix": [
     [
-      4988,
-      723
+      5051,
+      660
     ],
     [
-      857,
-      4910
+      692,
+      5075
     ]
   ]
 }

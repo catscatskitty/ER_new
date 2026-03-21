@@ -1,96 +1,87 @@
+"""
+Гибридная CNN-LSTM модель для классификации аудио (1D признаки)
+Работает с акустическими (38), фонетическими (80) и комбинированными (118) признаками
+"""
+
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
-class HybridCNN_LSTM(nn.Module):
-    """
-    Гибридная CNN-LSTM модель
-    """
+
+class CNNLSTMHybrid(nn.Module):
+    """Гибридная модель: CNN + LSTM"""
     
-    def __init__(self, input_dim=87, hidden_size=64, num_classes=2, dropout=0.3):
+    def __init__(self, input_dim, hidden_size=64, num_classes=2, dropout=0.3):
+        """
+        Args:
+            input_dim: размерность входных признаков (38/80/118)
+            hidden_size: размер скрытого состояния LSTM
+            num_classes: количество классов
+            dropout: вероятность dropout
+        """
         super().__init__()
         
-        # CNN часть - работает с 1D сигналом
-        self.conv1 = nn.Conv1d(1, 32, kernel_size=3, padding=1)
-        self.bn1 = nn.BatchNorm1d(32)
-        self.pool1 = nn.MaxPool1d(2)
-        
-        self.conv2 = nn.Conv1d(32, 64, kernel_size=3, padding=1)
-        self.bn2 = nn.BatchNorm1d(64)
-        self.pool2 = nn.MaxPool1d(2)
-        
-        # После двух пулингов размер уменьшается в 4 раза
-        # input_dim=87 -> 87//4 = 21
-        self.cnn_output_features = 64 * (input_dim // 4)  # 64 * 21 = 1344
-        
-        # Проекция для уменьшения размерности перед LSTM
-        self.projection = nn.Linear(self.cnn_output_features, hidden_size)
-        
-        # LSTM часть
-        self.lstm = nn.LSTM(
-            input_size=hidden_size,
-            hidden_size=hidden_size,
-            num_layers=2,
-            batch_first=True,
-            bidirectional=True,
-            dropout=dropout
+        # CNN часть для извлечения локальных паттернов
+        self.cnn = nn.Sequential(
+            nn.Conv1d(1, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool1d(2),
+            nn.Conv1d(32, 64, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.AdaptiveAvgPool1d(1)
         )
         
-        # Полносвязные слои
-        self.fc1 = nn.Linear(hidden_size * 2, 128)
-        self.fc2 = nn.Linear(128, 64)
-        self.fc3 = nn.Linear(64, num_classes)
+        # LSTM часть для временных зависимостей
+        self.lstm = nn.LSTM(
+            input_size=64,
+            hidden_size=hidden_size,
+            num_layers=1,
+            batch_first=True,
+            bidirectional=True
+        )
         
-        self.dropout = nn.Dropout(dropout)
-        self.relu = nn.ReLU()
+        # Классификатор
+        self.classifier = nn.Sequential(
+            nn.Linear(hidden_size * 2, 32),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(32, num_classes)
+        )
         
+        self._init_weights()
+    
+    def _init_weights(self):
+        for m in self.cnn.modules():
+            if isinstance(m, nn.Conv1d):
+                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+            elif isinstance(m, nn.BatchNorm1d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+        
+        for name, param in self.lstm.named_parameters():
+            if 'weight_ih' in name:
+                nn.init.xavier_uniform_(param.data)
+            elif 'weight_hh' in name:
+                nn.init.orthogonal_(param.data)
+            elif 'bias' in name:
+                param.data.fill_(0)
+        
+        for m in self.classifier.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.xavier_normal_(m.weight)
+                nn.init.constant_(m.bias, 0)
+    
     def forward(self, x):
-        # x shape: [batch, features] (87 признаков)
-        batch_size = x.size(0)
-        
-        # Добавляем канальное измерение для CNN
-        x = x.unsqueeze(1)  # [batch, 1, features]
+        # x shape: (batch, input_dim)
+        x = x.unsqueeze(1)  # (batch, 1, input_dim)
         
         # CNN
-        x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.relu(x)
-        x = self.pool1(x)
-        x = self.dropout(x)
-        
-        x = self.conv2(x)
-        x = self.bn2(x)
-        x = self.relu(x)
-        x = self.pool2(x)
-        x = self.dropout(x)
-        
-        # x shape после CNN: [batch, channels=64, features_reduced=21]
-        
-        # Изменяем форму: [batch, channels, features] -> [batch, features * channels]
-        x = x.contiguous().view(batch_size, -1)  # [batch, 64*21 = 1344]
-        
-        # Применяем проекцию для уменьшения размерности
-        x = self.projection(x)  # [batch, hidden_size=64]
-        
-        # Добавляем временное измерение для LSTM
-        x = x.unsqueeze(1)  # [batch, 1, hidden_size]
+        x = self.cnn(x)  # (batch, 64, 1)
+        x = x.squeeze(-1)  # (batch, 64)
+        x = x.unsqueeze(1)  # (batch, 1, 64) для LSTM
         
         # LSTM
-        lstm_out, (hidden, cell) = self.lstm(x)
+        lstm_out, (hidden, _) = self.lstm(x)
+        hidden_concat = torch.cat((hidden[-2], hidden[-1]), dim=1)
         
-        # Используем последний скрытый слой (оба направления)
-        # hidden shape: [2*num_layers, batch, hidden_size]
-        hidden = torch.cat((hidden[-2,:,:], hidden[-1,:,:]), dim=1)  # [batch, hidden_size*2]
-        
-        # Полносвязные слои
-        x = self.fc1(hidden)
-        x = self.relu(x)
-        x = self.dropout(x)
-        
-        x = self.fc2(x)
-        x = self.relu(x)
-        x = self.dropout(x)
-        
-        x = self.fc3(x)
-        
-        return x
+        # Классификация
+        return self.classifier(hidden_concat)

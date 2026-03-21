@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
-Обучение CatBoost
-Полная версия с поддержкой --config
+Обучение CatBoost (акустика или акустика+фонетика)
 """
 
 import argparse
@@ -28,34 +27,22 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Обучение CatBoost')
     parser.add_argument('--config', type=str, default='configs', help='Путь к конфигам')
     parser.add_argument('--features', type=str, default='acoustic', 
-                       choices=['acoustic', 'linguistic', 'combined'],
-                       help='Тип признаков для обучения')
+                       choices=['acoustic', 'combined'],
+                       help='Тип признаков: acoustic (38) или combined (38+27=65)')
     parser.add_argument('--force', action='store_true', help='Принудительное обучение')
     return parser.parse_args()
 
 
 def load_features(data_dir, feature_type='acoustic'):
-    """Загрузка признаков - всегда 38"""
-    
-    # Загружаем акустические признаки (они должны быть 38)
-    X_train = np.load(data_dir / 'features_train.npy')
-    X_val = np.load(data_dir / 'features_val.npy')
-    X_test = np.load(data_dir / 'features_test.npy')
-    
-    # Проверяем размерность
-    if X_train.shape[1] != 38:
-        print(f"Внимание: признаки имеют размерность {X_train.shape[1]}, ожидалось 38")
-        # Обрезаем или дополняем до 38
-        if X_train.shape[1] > 38:
-            X_train = X_train[:, :38]
-            X_val = X_val[:, :38]
-            X_test = X_test[:, :38]
-        elif X_train.shape[1] < 38:
-            # Дополняем нулями
-            pad_width = ((0, 0), (0, 38 - X_train.shape[1]))
-            X_train = np.pad(X_train, pad_width, mode='constant')
-            X_val = np.pad(X_val, pad_width, mode='constant')
-            X_test = np.pad(X_test, pad_width, mode='constant')
+    """Загрузка признаков в зависимости от типа"""
+    if feature_type == 'combined':
+        X_train = np.load(data_dir / 'features_train_combined.npy')
+        X_val = np.load(data_dir / 'features_val_combined.npy')
+        X_test = np.load(data_dir / 'features_test_combined.npy')
+    else:
+        X_train = np.load(data_dir / 'features_train.npy')
+        X_val = np.load(data_dir / 'features_val.npy')
+        X_test = np.load(data_dir / 'features_test.npy')
     
     y_train = np.load(data_dir / 'labels_train.npy')
     y_val = np.load(data_dir / 'labels_val.npy')
@@ -65,31 +52,17 @@ def load_features(data_dir, feature_type='acoustic'):
 
 
 class CatBoostTrainer:
-    def __init__(self, config_path='configs'):
-        # Загружаем конфиги с обработкой ошибок
+    def __init__(self, config_path='configs', feature_type='acoustic'):
         self.config_loader = ConfigLoader(config_path)
-        
-        try:
-            self.paths_config = self.config_loader.load_config('paths_config')
-        except Exception as e:
-            print(f"⚠️ Ошибка загрузки paths_config: {e}")
-            self.paths_config = {'paths': {}}
-        
-        try:
-            self.training_config = self.config_loader.load_config('training_config')
-        except Exception as e:
-            print(f"⚠️ Ошибка загрузки training_config: {e}")
-            self.training_config = {'training': {}}
-        
+        self.training_config = self.config_loader.load_config('training_config')
+        self.paths_config = self.config_loader.load_config('paths_config')
         self.file_manager = FileManager()
+        self.feature_type = feature_type
         
-        paths = self.paths_config.get('paths', {})
-        
-        self.processed_root = Path(paths.get('processed_root', 'data/processed'))
-        models_root = Path(paths.get('models_root', 'results/trained_models'))
-        self.models_dir = models_root / 'catboost'
-        self.metrics_dir = Path(paths.get('metrics_root', 'results/metrics'))
-        self.plots_dir = Path(paths.get('plots_root', 'results/plots'))
+        self.processed_root = Path(self.paths_config['paths']['processed_root'])
+        self.models_dir = Path(self.paths_config['paths']['models_root']) / 'catboost'
+        self.metrics_dir = Path(self.paths_config['paths']['metrics_root'])
+        self.plots_dir = Path(self.paths_config['paths']['plots_root'])
         
         self.file_manager.ensure_dir(self.models_dir)
         self.file_manager.ensure_dir(self.metrics_dir)
@@ -99,22 +72,20 @@ class CatBoostTrainer:
         
         training = self.training_config.get('training', {})
         set_random_seeds(training.get('random_seed', 42))
+        
+        self.logger.info(f"Тип признаков: {feature_type}")
     
-    def run(self, feature_type='acoustic'):
+    def run(self):
         self.logger.info("=" * 60)
         self.logger.info("ОБУЧЕНИЕ CATBOOST")
-        self.logger.info(f"Тип признаков: {feature_type}")
+        self.logger.info(f"Тип признаков: {self.feature_type}")
         self.logger.info("=" * 60)
         
         if not self.processed_root.exists():
-            self.logger.error(f"❌ Директория с данными не найдена: {self.processed_root}")
+            self.logger.error(f"Директория с данными не найдена: {self.processed_root}")
             return None, None
         
-        try:
-            X_train, X_val, X_test, y_train, y_val, y_test = load_features(self.processed_root, feature_type)
-        except FileNotFoundError as e:
-            self.logger.error(f"❌ Файлы признаков не найдены: {e}")
-            return None, None
+        X_train, X_val, X_test, y_train, y_val, y_test = load_features(self.processed_root, self.feature_type)
         
         self.logger.info(f"Train: {X_train.shape}")
         self.logger.info(f"Val: {X_val.shape}")
@@ -127,7 +98,6 @@ class CatBoostTrainer:
         X_test_scaled = scaler.transform(X_test)
         
         # Обучение
-        self.logger.info("Обучение модели...")
         model = CatBoostClassifier(
             iterations=100,
             depth=6,
@@ -137,7 +107,6 @@ class CatBoostTrainer:
             early_stopping_rounds=10
         )
         
-        # Обучение с валидацией
         model.fit(
             X_train_scaled, y_train,
             eval_set=(X_val_scaled, y_val),
@@ -153,14 +122,12 @@ class CatBoostTrainer:
         # Тестирование
         test_pred = model.predict(X_test_scaled)
         
-        # Отчет классификации
         report = classification_report(y_test, test_pred, target_names=['human', 'robot'], output_dict=True)
         self.logger.info("\n" + classification_report(y_test, test_pred, target_names=['human', 'robot']))
         
         robot_f1 = f1_score(y_test, test_pred, pos_label=1)
         self.logger.info(f"F1-score для роботов: {robot_f1:.4f}")
         
-        # Матрица ошибок
         cm = confusion_matrix(y_test, test_pred)
         
         plt.figure(figsize=(8, 6))
@@ -189,11 +156,11 @@ class CatBoostTrainer:
         # Сохранение
         model_path = self.models_dir / 'model.pkl'
         joblib.dump({'model': model, 'scaler': scaler}, model_path)
-        self.logger.info(f"✅ Модель сохранена в {model_path}")
+        self.logger.info(f"Модель сохранена в {model_path}")
         
-        # Метрики
         metrics = {
             'model': 'CatBoost',
+            'feature_type': self.feature_type,
             'accuracy': report['accuracy'],
             'precision_human': report['human']['precision'],
             'recall_human': report['human']['recall'],
@@ -205,19 +172,18 @@ class CatBoostTrainer:
             'confusion_matrix': cm.tolist()
         }
         
-        metrics_path = self.metrics_dir / 'catboost_metrics.json'
-        with open(metrics_path, 'w', encoding='utf-8') as f:
+        with open(self.metrics_dir / 'catboost_metrics.json', 'w') as f:
             json.dump(metrics, f, indent=2)
         
-        self.logger.info(f"✅ Метрики сохранены в {metrics_path}")
+        self.logger.info(f"Метрики сохранены в {self.metrics_dir / 'catboost_metrics.json'}")
         
         return model, metrics
 
 
 def main():
     args = parse_args()
-    trainer = CatBoostTrainer(config_path=args.config)
-    trainer.run(feature_type=args.features)
+    trainer = CatBoostTrainer(config_path=args.config, feature_type=args.features)
+    trainer.run()
 
 
 if __name__ == "__main__":

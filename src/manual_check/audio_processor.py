@@ -1,5 +1,5 @@
 """
-Обработка аудио нейросетевыми моделями
+Обработка аудио нейросетевыми моделями (с поддержкой фонетики)
 """
 
 import numpy as np
@@ -13,9 +13,11 @@ import traceback
 
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
+from src.features.phonetic_features import CombinedFeatureExtractor
+
 
 class CNN1D(nn.Module):
-    def __init__(self, input_dim=38, num_classes=2, dropout=0.5):
+    def __init__(self, input_dim=65, num_classes=2, dropout=0.5):
         super().__init__()
         self.conv_layers = nn.Sequential(
             nn.Conv1d(1, 64, kernel_size=3, padding=1),
@@ -39,7 +41,7 @@ class CNN1D(nn.Module):
 
 
 class LSTMModel(nn.Module):
-    def __init__(self, input_size=38, hidden_size=128, num_layers=2, num_classes=2, dropout=0.3, bidirectional=True):
+    def __init__(self, input_size=65, hidden_size=128, num_layers=2, num_classes=2, dropout=0.3, bidirectional=True):
         super().__init__()
         self.hidden_size = hidden_size
         self.num_layers = num_layers
@@ -79,7 +81,7 @@ class LSTMModel(nn.Module):
 
 
 class HybridModel(nn.Module):
-    def __init__(self, input_dim=38, hidden_size=64, num_classes=2, dropout=0.3):
+    def __init__(self, input_dim=65, hidden_size=64, num_classes=2, dropout=0.3):
         super().__init__()
         self.cnn = nn.Sequential(
             nn.Conv1d(1, 32, kernel_size=3, padding=1), nn.ReLU(), nn.MaxPool1d(2),
@@ -107,7 +109,7 @@ class HybridModel(nn.Module):
 
 
 class AudioProcessor:
-    def __init__(self, models_root):
+    def __init__(self, models_root, feature_type='combined'):
         if isinstance(models_root, str):
             self.models_root = Path(models_root)
         else:
@@ -116,20 +118,34 @@ class AudioProcessor:
         self.models = {}
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.sample_rate = 8000
-        self.feature_dim = 38
+        self.feature_type = feature_type
+        
+        if feature_type == 'combined':
+            self.feature_dim = 65
+            self.extractor = CombinedFeatureExtractor()
+        else:
+            self.feature_dim = 38
+            self.extractor = None
         
         print(f"\n=== Инициализация AudioProcessor ===")
         print(f"Устройство: {self.device}")
+        print(f"Тип признаков: {feature_type}")
+        print(f"Размерность: {self.feature_dim}")
         print(f"Поиск моделей в: {self.models_root}")
     
     def extract_features(self, audio_path):
-        """Извлечение 38 признаков из аудио"""
+        if self.feature_type == 'combined':
+            return self.extractor.extract_combined(audio_path)
+        else:
+            return self._extract_acoustic(audio_path)
+    
+    def _extract_acoustic(self, audio_path):
+        """Извлечение 38 акустических признаков"""
         try:
             if isinstance(audio_path, str):
                 audio_path = Path(audio_path)
             
             if not audio_path.exists():
-                print(f"Файл не существует: {audio_path}")
                 return None
             
             y, sr = librosa.load(str(audio_path), sr=self.sample_rate, duration=5)
@@ -141,14 +157,14 @@ class AudioProcessor:
             
             features = []
             
-            # 1. MFCC (13 means + 13 stds = 26 признаков)
+            # MFCC (26)
             mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13, n_fft=512, hop_length=256)
             mfcc_mean = np.mean(mfcc, axis=1)
             mfcc_std = np.std(mfcc, axis=1)
             features.extend(mfcc_mean)
             features.extend(mfcc_std)
             
-            # 2. Спектральные признаки (3)
+            # Спектральные (3)
             try:
                 features.append(np.mean(librosa.feature.spectral_centroid(y=y, sr=sr, n_fft=512, hop_length=256)))
             except:
@@ -164,19 +180,19 @@ class AudioProcessor:
             except:
                 features.append(0)
             
-            # 3. ZCR (1)
+            # ZCR (1)
             try:
                 features.append(np.mean(librosa.feature.zero_crossing_rate(y, frame_length=512, hop_length=256)))
             except:
                 features.append(0)
             
-            # 4. RMS (1)
+            # RMS (1)
             try:
                 features.append(np.mean(librosa.feature.rms(y=y, frame_length=512, hop_length=256)))
             except:
                 features.append(0)
             
-            # 5. Tempo (1)
+            # Tempo (1)
             try:
                 tempo, _ = librosa.beat.beat_track(y=y, sr=sr, hop_length=256)
                 if isinstance(tempo, np.ndarray):
@@ -185,27 +201,24 @@ class AudioProcessor:
             except:
                 features.append(0)
             
-            # 6. Chroma (6 признаков для 38)
+            # Chroma (6)
             try:
                 chroma = librosa.feature.chroma_stft(y=y, sr=sr, n_fft=512, hop_length=256)
                 chroma_mean = np.mean(chroma, axis=1)
-                features.extend(chroma_mean[:6])  # Берем все 6
+                features.extend(chroma_mean[:6])
             except:
                 features.extend([0, 0, 0, 0, 0, 0])
             
-            # Проверяем, что получилось 38 признаков
             if len(features) != 38:
-                print(f"⚠️ Получено {len(features)} признаков, ожидалось 38")
-                # Дополняем нулями
-                while len(features) < 38:
-                    features.append(0)
-                # Обрезаем
-                features = features[:38]
+                if len(features) < 38:
+                    features.extend([0] * (38 - len(features)))
+                else:
+                    features = features[:38]
             
             return np.array(features, dtype=np.float32)
             
         except Exception as e:
-            print(f"Ошибка при извлечении признаков: {e}")
+            print(f"Ошибка: {e}")
             return None
     
     def load_models(self):

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Обучение XGBoost
-Полная версия с поддержкой --config и совместимостью с разными версиями
+Адаптировано для разных версий библиотеки
 """
 
 import argparse
@@ -35,61 +35,73 @@ def parse_args():
 
 
 def load_features(data_dir, feature_type='acoustic'):
-    """Загрузка признаков - всегда 38"""
+    """Загрузка признаков в зависимости от типа с проверкой размерностей"""
+    data_dir = Path(data_dir)
     
-    # Загружаем акустические признаки (они должны быть 38)
-    X_train = np.load(data_dir / 'features_train.npy')
-    X_val = np.load(data_dir / 'features_val.npy')
-    X_test = np.load(data_dir / 'features_test.npy')
-    
-    # Проверяем размерность
-    if X_train.shape[1] != 38:
-        print(f"Внимание: признаки имеют размерность {X_train.shape[1]}, ожидалось 38")
-        # Обрезаем или дополняем до 38
-        if X_train.shape[1] > 38:
-            X_train = X_train[:, :38]
-            X_val = X_val[:, :38]
-            X_test = X_test[:, :38]
-        elif X_train.shape[1] < 38:
-            # Дополняем нулями
-            pad_width = ((0, 0), (0, 38 - X_train.shape[1]))
-            X_train = np.pad(X_train, pad_width, mode='constant')
-            X_val = np.pad(X_val, pad_width, mode='constant')
-            X_test = np.pad(X_test, pad_width, mode='constant')
+    if feature_type == 'acoustic':
+        X_train = np.load(data_dir / 'features_train.npy')
+        X_val = np.load(data_dir / 'features_val.npy')
+        X_test = np.load(data_dir / 'features_test.npy')
+    elif feature_type == 'phonetic':
+        X_train = np.load(data_dir / 'phonetic_train.npy')
+        X_val = np.load(data_dir / 'phonetic_val.npy')
+        X_test = np.load(data_dir / 'phonetic_test.npy')
+    else:  # combined
+        X_train_ac = np.load(data_dir / 'features_train.npy')
+        X_train_ph = np.load(data_dir / 'phonetic_train.npy')
+        X_val_ac = np.load(data_dir / 'features_val.npy')
+        X_val_ph = np.load(data_dir / 'phonetic_val.npy')
+        X_test_ac = np.load(data_dir / 'features_test.npy')
+        X_test_ph = np.load(data_dir / 'phonetic_test.npy')
+        
+        # Обрезаем до минимальной длины
+        min_train = min(X_train_ac.shape[0], X_train_ph.shape[0])
+        min_val = min(X_val_ac.shape[0], X_val_ph.shape[0])
+        min_test = min(X_test_ac.shape[0], X_test_ph.shape[0])
+        
+        if X_train_ac.shape[0] != X_train_ph.shape[0]:
+            print(f" Обрезаю train: акустика {X_train_ac.shape[0]}, фонетика {X_train_ph.shape[0]}  {min_train}")
+            X_train_ac = X_train_ac[:min_train]
+            X_train_ph = X_train_ph[:min_train]
+        if X_val_ac.shape[0] != X_val_ph.shape[0]:
+            print(f" Обрезаю val: акустика {X_val_ac.shape[0]}, фонетика {X_val_ph.shape[0]}  {min_val}")
+            X_val_ac = X_val_ac[:min_val]
+            X_val_ph = X_val_ph[:min_val]
+        if X_test_ac.shape[0] != X_test_ph.shape[0]:
+            print(f" Обрезаю test: акустика {X_test_ac.shape[0]}, фонетика {X_test_ph.shape[0]}  {min_test}")
+            X_test_ac = X_test_ac[:min_test]
+            X_test_ph = X_test_ph[:min_test]
+        
+        X_train = np.hstack([X_train_ac, X_train_ph])
+        X_val = np.hstack([X_val_ac, X_val_ph])
+        X_test = np.hstack([X_test_ac, X_test_ph])
     
     y_train = np.load(data_dir / 'labels_train.npy')
     y_val = np.load(data_dir / 'labels_val.npy')
     y_test = np.load(data_dir / 'labels_test.npy')
+    
+    # Обрезаем метки до совпадающей длины
+    if X_train.shape[0] != y_train.shape[0]:
+        y_train = y_train[:X_train.shape[0]]
+    if X_val.shape[0] != y_val.shape[0]:
+        y_val = y_val[:X_val.shape[0]]
+    if X_test.shape[0] != y_test.shape[0]:
+        y_test = y_test[:X_test.shape[0]]
     
     return X_train, X_val, X_test, y_train, y_val, y_test
 
 
 class XGBoostTrainer:
     def __init__(self, config_path='configs'):
-        # Загружаем конфиги с обработкой ошибок
         self.config_loader = ConfigLoader(config_path)
-        
-        try:
-            self.paths_config = self.config_loader.load_config('paths_config')
-        except Exception as e:
-            print(f"⚠️ Ошибка загрузки paths_config: {e}")
-            self.paths_config = {'paths': {}}
-        
-        try:
-            self.training_config = self.config_loader.load_config('training_config')
-        except Exception as e:
-            print(f"⚠️ Ошибка загрузки training_config: {e}")
-            self.training_config = {'training': {}}
-        
+        self.training_config = self.config_loader.load_config('training_config')
+        self.paths_config = self.config_loader.load_config('paths_config')
         self.file_manager = FileManager()
         
-        paths = self.paths_config.get('paths', {})
-        
-        self.processed_root = Path(paths.get('processed_root', 'data/processed'))
-        models_root = Path(paths.get('models_root', 'results/trained_models'))
-        self.models_dir = models_root / 'xgboost'
-        self.metrics_dir = Path(paths.get('metrics_root', 'results/metrics'))
-        self.plots_dir = Path(paths.get('plots_root', 'results/plots'))
+        self.processed_root = Path(self.paths_config['paths']['processed_root'])
+        self.models_dir = Path(self.paths_config['paths']['models_root']) / 'xgboost'
+        self.metrics_dir = Path(self.paths_config['paths']['metrics_root'])
+        self.plots_dir = Path(self.paths_config['paths']['plots_root'])
         
         self.file_manager.ensure_dir(self.models_dir)
         self.file_manager.ensure_dir(self.metrics_dir)
@@ -126,12 +138,28 @@ class XGBoostTrainer:
         X_val_scaled = scaler.transform(X_val)
         X_test_scaled = scaler.transform(X_test)
         
-        # Обучение
-        self.logger.info("Обучение модели...")
+        # Создаём модель
+        model = XGBClassifier(
+            n_estimators=100,
+            max_depth=6,
+            learning_rate=0.1,
+            random_state=42,
+            n_jobs=-1,
+            eval_metric='logloss'
+        )
         
-        # Универсальный подход для разных версий XGBoost
+        # Обучение с early stopping (универсальный способ)
+        self.logger.info("Обучение модели...")
         try:
-            # Пробуем первый вариант (новая версия)
+            # Пробуем передать early_stopping_rounds в fit (новая версия)
+            model.fit(
+                X_train_scaled, y_train,
+                eval_set=[(X_val_scaled, y_val)],
+                early_stopping_rounds=10,
+                verbose=False
+            )
+        except TypeError:
+            # Если не сработало, пробуем через конструктор (старая версия)
             model = XGBClassifier(
                 n_estimators=100,
                 max_depth=6,
@@ -139,50 +167,13 @@ class XGBoostTrainer:
                 random_state=42,
                 n_jobs=-1,
                 eval_metric='logloss',
-                early_stopping_rounds=10,
-                use_label_encoder=False
+                early_stopping_rounds=10
             )
-            
             model.fit(
                 X_train_scaled, y_train,
                 eval_set=[(X_val_scaled, y_val)],
                 verbose=False
             )
-        except TypeError:
-            try:
-                # Пробуем второй вариант
-                model = XGBClassifier(
-                    n_estimators=100,
-                    max_depth=6,
-                    learning_rate=0.1,
-                    random_state=42,
-                    n_jobs=-1,
-                    eval_metric='logloss'
-                )
-                
-                model.fit(
-                    X_train_scaled, y_train,
-                    eval_set=[(X_val_scaled, y_val)],
-                    early_stopping_rounds=10,
-                    verbose=False
-                )
-            except TypeError:
-                # Третий вариант (старая версия)
-                model = XGBClassifier(
-                    n_estimators=100,
-                    max_depth=6,
-                    learning_rate=0.1,
-                    random_state=42,
-                    n_jobs=-1
-                )
-                
-                model.fit(
-                    X_train_scaled, y_train,
-                    eval_set=[(X_val_scaled, y_val)],
-                    early_stopping_rounds=10,
-                    eval_metric='logloss',
-                    verbose=False
-                )
         
         # Валидация
         val_pred = model.predict(X_val_scaled)
@@ -193,14 +184,12 @@ class XGBoostTrainer:
         # Тестирование
         test_pred = model.predict(X_test_scaled)
         
-        # Отчет классификации
         report = classification_report(y_test, test_pred, target_names=['human', 'robot'], output_dict=True)
         self.logger.info("\n" + classification_report(y_test, test_pred, target_names=['human', 'robot']))
         
         robot_f1 = f1_score(y_test, test_pred, pos_label=1)
         self.logger.info(f"F1-score для роботов: {robot_f1:.4f}")
         
-        # Матрица ошибок
         cm = confusion_matrix(y_test, test_pred)
         
         plt.figure(figsize=(8, 6))
@@ -212,26 +201,11 @@ class XGBoostTrainer:
         plt.savefig(self.plots_dir / 'xgboost_confusion_matrix.png')
         plt.close()
         
-        # Важность признаков
-        if hasattr(model, 'feature_importances_'):
-            plt.figure(figsize=(10, 6))
-            importances = model.feature_importances_
-            indices = np.argsort(importances)[::-1][:20]
-            
-            plt.bar(range(len(indices)), importances[indices])
-            plt.title('XGBoost - Top 20 Feature Importances')
-            plt.xlabel('Feature Index')
-            plt.ylabel('Importance')
-            plt.tight_layout()
-            plt.savefig(self.plots_dir / 'xgboost_feature_importance.png')
-            plt.close()
-        
         # Сохранение
         model_path = self.models_dir / 'model.pkl'
         joblib.dump({'model': model, 'scaler': scaler}, model_path)
         self.logger.info(f"✅ Модель сохранена в {model_path}")
         
-        # Метрики
         metrics = {
             'model': 'XGBoost',
             'accuracy': report['accuracy'],

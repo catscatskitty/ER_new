@@ -1,0 +1,11 @@
+model,type,success,skipped,time,size_mb,returncode,error
+cnn,neural,True,False,70.74199867248535,0.6443824768066406,0,
+lstm,neural,True,False,71.04400682449341,2.6202640533447266,0,
+hybrid,neural,True,False,57.989803314208984,0.2982635498046875,0,
+logistic,traditional,True,False,6.539005756378174,0.0031213760375976562,0,
+random_forest,traditional,True,False,33.34313225746155,10.680977821350098,0,
+xgboost,traditional,False,False,4.859004259109497,0.0,1,"Traceback (most recent call last):
+  File ""C:\Users\Владелец\Desktop\ertelecom\src\models\traditional\train_xgboost.py"", line 238, in <module>
+    main()
+  File ""C:\Users\Владелец\Desktop\ertelecom\sr"
+catboost,traditional,True,False,7.933006286621094,0.220977783203125,0,

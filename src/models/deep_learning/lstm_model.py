@@ -1,25 +1,37 @@
+"""
+LSTM модель для классификации аудио (1D признаки)
+Работает с акустическими (38), фонетическими (80) и комбинированными (118) признаками
+"""
+
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
-class LSTMClassifier(nn.Module):
-    """
-    LSTM модель для классификации аудио
-    """
+
+class LSTMAudioClassifier(nn.Module):
+    """LSTM для классификации на основе извлеченных признаков"""
     
-    def __init__(self, input_size=87, hidden_size=128, 
-                 num_layers=2, num_classes=2, 
-                 dropout=0.3, bidirectional=True):
+    def __init__(self, input_size, hidden_size=128, num_layers=2, 
+                 num_classes=2, dropout=0.3, bidirectional=True):
+        """
+        Args:
+            input_size: размерность входных признаков (38/80/118)
+            hidden_size: размер скрытого состояния LSTM
+            num_layers: количество слоёв LSTM
+            num_classes: количество классов
+            dropout: вероятность dropout
+            bidirectional: использовать двунаправленную LSTM
+        """
         super().__init__()
         
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.bidirectional = bidirectional
+        self.num_directions = 2 if bidirectional else 1
         
-        # Проекция для увеличения размерности (опционально)
+        # Проекция входных признаков в скрытое пространство
         self.projection = nn.Linear(input_size, hidden_size)
         
-        # LSTM
+        # LSTM слои
         self.lstm = nn.LSTM(
             input_size=hidden_size,
             hidden_size=hidden_size,
@@ -29,44 +41,45 @@ class LSTMClassifier(nn.Module):
             bidirectional=bidirectional
         )
         
-        # Direction multiplier
-        self.direction_multiplier = 2 if bidirectional else 1
+        # Классификатор
+        self.classifier = nn.Sequential(
+            nn.Linear(hidden_size * self.num_directions, 64),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(64, num_classes)
+        )
         
-        # Полносвязные слои
-        self.fc1 = nn.Linear(hidden_size * self.direction_multiplier, 256)
-        self.fc2 = nn.Linear(256, 128)
-        self.fc3 = nn.Linear(128, num_classes)
+        self._init_weights()
+    
+    def _init_weights(self):
+        for name, param in self.lstm.named_parameters():
+            if 'weight_ih' in name:
+                nn.init.xavier_uniform_(param.data)
+            elif 'weight_hh' in name:
+                nn.init.orthogonal_(param.data)
+            elif 'bias' in name:
+                param.data.fill_(0)
         
-        self.dropout = nn.Dropout(dropout)
-        self.relu = nn.ReLU()
-        
+        for m in self.classifier.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.xavier_normal_(m.weight)
+                nn.init.constant_(m.bias, 0)
+    
     def forward(self, x):
-        # x shape: [batch, features]
-        batch_size = x.size(0)
-        
-        # Проекция и добавление временного измерения
-        x = self.projection(x)  # [batch, hidden_size]
-        x = x.unsqueeze(1)      # [batch, 1, hidden_size]
+        # x shape: (batch, input_size)
+        x = x.unsqueeze(1)  # (batch, 1, input_size)
+        x = self.projection(x)  # (batch, 1, hidden_size)
         
         # LSTM
-        lstm_out, (hidden, cell) = self.lstm(x)
+        lstm_out, (hidden, _) = self.lstm(x)
         
-        # Используем последний скрытый слой
+        # Используем последние скрытые состояния
         if self.bidirectional:
-            # Для bidirectional: [2, batch, hidden] -> [batch, 2*hidden]
-            hidden = torch.cat((hidden[-2,:,:], hidden[-1,:,:]), dim=1)
+            hidden_forward = hidden[-2, :, :]
+            hidden_backward = hidden[-1, :, :]
+            hidden_concat = torch.cat((hidden_forward, hidden_backward), dim=1)
+            out = hidden_concat
         else:
-            hidden = hidden[-1,:,:]
+            out = hidden[-1, :, :]
         
-        # Полносвязные слои
-        x = self.fc1(hidden)
-        x = self.relu(x)
-        x = self.dropout(x)
-        
-        x = self.fc2(x)
-        x = self.relu(x)
-        x = self.dropout(x)
-        
-        x = self.fc3(x)
-        
-        return x
+        return self.classifier(out)

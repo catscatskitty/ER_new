@@ -1,34 +1,23 @@
 {
-  "model": "lstm_combined",
-  "feature_type": "combined",
-  "train_shape": [
-    54767,
-    87
-  ],
-  "val_shape": [
-    11735,
-    87
-  ],
-  "test_shape": [
-    11738,
-    87
-  ],
-  "test_accuracy": 0.9404498210938831,
-  "test_f1": 0.940406531240222,
-  "test_auc": 0.9847292402837118,
+  "model": "LSTM_combined",
+  "accuracy": 0.4983446593483185,
+  "precision_human": 0.4906560636182903,
+  "recall_human": 0.2160742426895465,
+  "f1_human": 0.300024313153416,
+  "precision_robot": 0.5005020640410577,
+  "recall_robot": 0.777874111323045,
+  "f1_robot": 0.6090970807875085,
+  "robot_f1": 0.6090970807875085,
   "confusion_matrix": [
     [
-      5736,
-      234
+      1234,
+      4477
     ],
     [
-      465,
-      5303
+      1281,
+      4486
     ]
   ],
-  "best_val_accuracy": 0.9457179377929271,
-  "best_val_loss": 0.17293560087842785,
-  "best_epoch": 15,
-  "early_stopped_epoch": 25,
-  "feature_count": 87
+  "feature_type": "combined",
+  "input_size": 75
 }
