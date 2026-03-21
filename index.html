@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Герои Пермской земли | Цифровая память с картой</title>
+    <!-- Подключаем Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Подключаем Leaflet (карта) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        .heroes-project {
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background: #f8f9fa;
+            color: #1e2a3a;
+        }
+        .heroes-project h1 {
+            font-size: 2.8rem;
+            text-align: center;
+            margin-bottom: 0.5rem;
+            color: #2c3e4e;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+        }
+        .heroes-project .subtitle {
+            text-align: center;
+            font-size: 1.2rem;
+            color: #5d6f7e;
+            margin-bottom: 3rem;
+            border-bottom: 2px solid #d4af37;
+            display: inline-block;
+            width: auto;
+            margin-left: auto;
+            margin-right: auto;
+            padding-bottom: 0.5rem;
+        }
+        /* Сетка карточек */
+        .heroes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 30px;
+            margin-bottom: 50px;
+        }
+        .hero-card {
+            background: white;
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.05), 0 6px 6px rgba(0,0,0,0.03);
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+            cursor: pointer;
+            border: 1px solid #e9ecef;
+        }
+        .hero-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 30px rgba(0,0,0,0.1);
+        }
+        .hero-card-inner {
+            padding: 24px;
+        }
+        .hero-name {
+            font-size: 1.6rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #1e466e;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .hero-name i {
+            font-size: 1.8rem;
+            color: #d4af37;
+        }
+        .hero-years {
+            font-size: 0.9rem;
+            color: #6c757d;
+            margin-bottom: 12px;
+            letter-spacing: 0.3px;
+        }
+        .hero-title {
+            font-weight: 600;
+            color: #2c6e2c;
+            margin-bottom: 12px;
+            font-size: 1rem;
+            background: #eef2f5;
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 30px;
+        }
+        .hero-desc {
+            font-size: 0.95rem;
+            line-height: 1.5;
+            color: #2c3e50;
+            margin: 15px 0;
+        }
+        .hero-link {
+            color: #b8860b;
+            font-weight: 500;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 8px;
+        }
+        .hero-link i {
+            font-size: 0.8rem;
+            transition: transform 0.2s;
+        }
+        .hero-link:hover i {
+            transform: translateX(4px);
+        }
+        /* Секция улиц и карты */
+        .streets-section {
+            background: white;
+            border-radius: 32px;
+            padding: 20px 24px;
+            margin-top: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.03);
+            border: 1px solid #e2e8f0;
+        }
+        .streets-section h2 {
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            color: #1e466e;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .streets-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        .streets-table th, .streets-table td {
+            padding: 12px 8px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+            vertical-align: top;
+        }
+        .streets-table th {
+            background: #f1f5f9;
+            font-weight: 600;
+            color: #1e466e;
+        }
+        @media (max-width: 700px) {
+            .streets-table, .streets-table tbody, .streets-table tr, .streets-table td, .streets-table th {
+                display: block;
+            }
+            .streets-table thead { display: none; }
+            .streets-table tr {
+                margin-bottom: 20px;
+                border: 1px solid #dee2e6;
+                border-radius: 20px;
+                padding: 10px;
+            }
+            .streets-table td {
+                display: flex;
+                justify-content: space-between;
+                align-items: baseline;
+                border: none;
+                padding: 8px 0;
+            }
+            .streets-table td::before {
+                content: attr(data-label);
+                font-weight: 600;
+                width: 40%;
+                color: #2c3e50;
+            }
+        }
+        /* Карта */
+        .map-section {
+            background: white;
+            border-radius: 32px;
+            padding: 20px 24px;
+            margin-top: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.03);
+            border: 1px solid #e2e8f0;
+        }
+        .map-section h2 {
+            font-size: 1.8rem;
+            margin-bottom: 16px;
+            color: #1e466e;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        #map {
+            height: 450px;
+            border-radius: 24px;
+            z-index: 1;
+            margin-top: 12px;
+        }
+        /* Модальное окно */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            font-family: inherit;
+        }
+        .modal.active {
+            display: flex;
+        }
+        .modal-content {
+            background: #fff;
+            max-width: 700px;
+            width: 90%;
+            max-height: 85vh;
+            border-radius: 32px;
+            overflow-y: auto;
+            padding: 28px 30px;
+            position: relative;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 24px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #888;
+            transition: 0.2s;
+        }
+        .modal-close:hover {
+            color: #000;
+        }
+        .modal h3 {
+            font-size: 1.8rem;
+            margin-top: 0;
+            margin-bottom: 16px;
+            color: #1e466e;
+        }
+        .modal h4 {
+            margin: 20px 0 8px;
+            color: #b8860b;
+        }
+        .modal p {
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+        .footer-note {
+            text-align: center;
+            margin-top: 50px;
+            font-size: 0.85rem;
+            color: #6c757d;
+            border-top: 1px solid #dee2e6;
+            padding-top: 25px;
+        }
+    </style>
+</head>
+<body>
+<div class="heroes-project">
+    <h1>⭐ Герои Пермской земли</h1>
+    <div style="text-align: center;">
+        <div class="subtitle">Цифровая память о земляках – Героях Великой Отечественной войны</div>
+    </div>
+
+    <!-- Сетка карточек героев -->
+    <div class="heroes-grid" id="heroesGrid"></div>
+
+    <!-- Секция улиц (таблица) -->
+    <div class="streets-section">
+        <h2><i class="fas fa-map-marked-alt"></i> Память на карте Перми</h2>
+        <table class="streets-table" id="streetsTable">
+            <thead>
+                <tr><th>Название</th><th>Тип</th><th>В честь кого</th><th>Краткая справка</th></tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+        <p style="font-size:0.85rem; margin-top:16px;">* Всего в Перми 119 улиц, переулков и проспектов, связанных с участниками Великой Отечественной войны.</p>
+    </div>
+
+    <!-- Интерактивная карта -->
+    <div class="map-section">
+        <h2><i class="fas fa-map"></i> Интерактивная карта памяти</h2>
+        <div id="map"></div>
+        <p style="font-size:0.8rem; margin-top:12px;">Нажмите на маркер, чтобы узнать о герое, чьим именем названа улица.</p>
+    </div>
+
+    <div class="footer-note">
+        <i class="fas fa-dove"></i> Проект создан на основе архивных данных ПермГАСПИ и материалов Российского военно-исторического общества.
+    </div>
+</div>
+
+<!-- Модальное окно -->
+<div id="heroModal" class="modal">
+    <div class="modal-content">
+        <span class="modal-close">&times;</span>
+        <div id="modalBody"></div>
+    </div>
+</div>
+
+<script>
+    // Данные героев (полные биографии)
+    const heroesData = [
+        {
+            id: "bukirev",
+            name: "Александр Ильич Букирев",
+            years: "1903–1964",
+            title: "Ректор Пермского университета, учёный, участник войны",
+            shortDesc: "Ректор Пермского университета, ушёл на фронт добровольцем. Командир артиллерийского дивизиона, разработал методы борьбы с танками «Королевский тигр». После войны вернулся к науке.",
+            fullBio: `<p><strong>Александр Ильич Букирев</strong> (1903–1964) – ректор Пермского университета, учёный-ихтиолог, участник Великой Отечественной войны. В 1941 году добровольцем ушёл на фронт, командовал артиллерийским дивизионом, затем был начальником штаба артиллерии 1-го Украинского фронта. Разработал и опубликовал брошюру «Немецкий тяжёлый танк „Тигр Б“ и борьба с ним», которая помогла советским артиллеристам эффективно уничтожать новейшие немецкие танки. Награждён орденами Ленина, Красного Знамени, Кутузова III степени, Отечественной войны I степени, Красной Звезды, медалями «За взятие Берлина», «За освобождение Праги». После войны вернулся в Пермский университет, вновь стал ректором, заведовал кафедрой зоологии позвоночных. Именем Букирева названа улица в Перми.</p>`,
+            permlink: "Улица Букирева в микрорайоне Парковый"
+        },
+        {
+            id: "krivashov",
+            name: "Виктор Петрович Кривашов",
+            years: "1925–2025",
+            title: "Почётный гражданин Перми, ветеран",
+            shortDesc: "Артиллерист-наводчик, участник боёв с Японией в 1945 году. Уничтожил два пулемётных расчёта, награждён медалью «За отвагу». В 100 лет участвовал в Параде Победы в Москве.",
+            fullBio: `<p><strong>Виктор Петрович Кривашов</strong> (1925–2025) – участник Великой Отечественной и советско-японской войн. Призван в 1943 году, служил артиллеристом-наводчиком. В августе 1945 года в составе 300-й стрелковой дивизии участвовал в Маньчжурской операции. В ночь на 9 августа перешёл границу с Маньчжурией, в боях за город Муданьцзян уничтожил два вражеских пулемётных расчёта, за что награждён медалью «За отвагу». Демобилизован в 1950 году. Работал учителем, токарем на заводе. В 2025 году присвоено звание «Почётный гражданин города Перми». 9 мая 2025 года участвовал в параде на Красной площади в Москве.</p>`,
+            permlink: "В Перми его имя увековечено в памятных досках и как почётного гражданина"
+        },
+        {
+            id: "kufonin",
+            name: "Сергей Фёдорович Куфонин",
+            years: "1920–1979",
+            title: "Герой Советского Союза, лётчик-штурмовик",
+            shortDesc: "Совершил 108 боевых вылетов, уничтожал живую силу и технику противника. Командовал группами штурмовиков в Прибалтике и Восточной Пруссии.",
+            fullBio: `<p><strong>Сергей Фёдорович Куфонин</strong> (1920–1979) – уроженец Пермского района, Герой Советского Союза (1945). Штурман 135-го штурмового авиаполка, совершил 108 боевых вылетов на штурмовку вражеских аэродромов, колонн, укреплений. Участвовал в Сталинградской битве, освобождении Прибалтики, боях в Восточной Пруссии. Лично сбил 4 вражеских самолёта. После войны служил в ВВС, окончил Военно-воздушную академию, уволен в запас в звании полковника. Именем Куфонина названа улица в Перми (микрорайон Парковый).</p>`,
+            permlink: "Улица Куфонина в Перми"
+        },
+        {
+            id: "danshchin",
+            name: "Сергей Петрович Даньщин",
+            years: "1911–1943",
+            title: "Герой Советского Союза, лётчик авиации дальнего действия",
+            shortDesc: "Совершил 139 боевых вылетов, 129 из них – ночью. Бомбил объекты в глубоком тылу врага. Погиб при выполнении боевого задания.",
+            fullBio: `<p><strong>Сергей Петрович Даньщин</strong> (1911–1943) – командир звена 2-го гвардейского авиаполка дальнего действия. К февралю 1943 года совершил 139 боевых вылетов, из них 129 – ночью, нанося удары по военно-промышленным объектам и живой силе противника. Удостоен звания Героя Советского Союза 25 марта 1943 года. 11 сентября 1943 года не вернулся с боевого задания. Награждён орденами Ленина, Красного Знамени, Отечественной войны I степени. В Перми его именем названа улица, а также судно Министерства речного флота.</p>`,
+            permlink: "Улица Даньщина в Перми"
+        },
+        {
+            id: "astafiev",
+            name: "Василий Михайлович Астафьев",
+            years: "1919 – после 1960",
+            title: "Герой Советского Союза",
+            shortDesc: "Отличился при форсировании Днепра в 1943 году. После войны жил и работал в Перми. В 2024 году открыта мемориальная доска.",
+            fullBio: `<p><strong>Василий Михайлович Астафьев</strong> (1919 – после 1960) – участник Великой Отечественной войны с первых дней. Воевал на Юго-Западном, Степном, 2-м Украинском и 1-м Белорусском фронтах. Особо отличился в октябре 1943 года при форсировании Днепра южнее Кременчуга: переправился с передовым отрядом, участвовал в захвате и удержании плацдарма. Указом от 20 декабря 1943 года удостоен звания Героя Советского Союза. После войны жил в Перми. 9 декабря 2024 года на доме №17 по улице Толмачева открыта мемориальная доска.</p>`,
+            permlink: "Мемориальная доска на ул. Толмачева, 17"
+        }
+    ];
+
+    // Данные улиц с координатами (широта, долгота) – примерные, найдите точные через Яндекс.Карты и замените
+    const streetsData = [
+        { name: "ул. Куфонина", type: "улица", hero: "Сергей Фёдорович Куфонин", info: "Герой Советского Союза, лётчик-штурмовик, 108 боевых вылетов.", lat: 57.996573, lng: 56.135740 },
+        { name: "ул. Даньщина", type: "улица", hero: "Сергей Петрович Даньщин", info: "Герой Советского Союза, лётчик авиации дальнего действия.", lat: 58.011652, lng: 56.182470 },
+        { name: "ул. Букирева", type: "улица", hero: "Александр Ильич Букирев", info: "Ректор ПГУ, участник войны, разработчик методики борьбы с «Тиграми».", lat: 58.008805, lng: 56.187106 },
+        { name: "ул. Зои Космодемьянской", type: "улица", hero: "Зоя Космодемьянская", info: "Герой Советского Союза, партизанка.", lat: 57.999492, lng: 56.167585 },
+        { name: "ул. Барамзиной Татьяны", type: "улица", hero: "Татьяна Барамзина", info: "Герой Советского Союза (посмертно), снайпер.", lat: 58.000813, lng: 56.184581 },
+        { name: "микрорайон Героев Хасана", type: "микрорайон", hero: "Герои боёв у озера Хасан", info: "26 героев Советского Союза.", lat: 57.968582, lng: 56.261612 },
+        { name: "микрорайон Крохалева", type: "микрорайон", hero: "Анатолий Крохалев", info: "Первый Герой Советского Союза Перми, морской лётчик.", lat: 57.965503, lng: 56.219822 },
+        { name: "ул. Левченко", type: "улица", hero: "Дорофей Левченко", info: "Герой Советского Союза, командир роты, отличился в боях у озера Хасан.", lat: 57.990061, lng: 56.218089 }
+    ];
+
+    // Рендерим карточки героев
+    function renderHeroes() {
+        const grid = document.getElementById('heroesGrid');
+        if (!grid) return;
+        grid.innerHTML = heroesData.map(hero => `
+            <div class="hero-card" data-hero-id="${hero.id}">
+                <div class="hero-card-inner">
+                    <div class="hero-name"><i class="fas fa-star-of-life"></i> ${hero.name}</div>
+                    <div class="hero-years">${hero.years}</div>
+                    <div class="hero-title">${hero.title}</div>
+                    <div class="hero-desc">${hero.shortDesc}</div>
+                    <div class="hero-link">Подробнее <i class="fas fa-arrow-right"></i></div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // Рендерим таблицу улиц
+    function renderStreets() {
+        const tbody = document.querySelector('#streetsTable tbody');
+        if (!tbody) return;
+        tbody.innerHTML = streetsData.map(street => `
+            <tr>
+                <td data-label="Название">${street.name}</td>
+                <td data-label="Тип">${street.type}</td>
+                <td data-label="В честь кого">${street.hero}</td>
+                <td data-label="Справка">${street.info}</td>
+            </tr>
+        `).join('');
+    }
+
+    // Инициализация карты
+    function initMap() {
+        // Центр Перми (примерные координаты)
+        const permaCenter = [58.0105, 56.2345];
+        const map = L.map('map').setView(permaCenter, 13);
+        
+        // Слой тайлов OpenStreetMap
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; CartoDB',
+            subdomains: 'abcd',
+            maxZoom: 19
+        }).addTo(map);
+        
+        // Добавляем маркеры для каждой улицы из streetsData
+        streetsData.forEach(street => {
+            if (street.lat && street.lng) {
+                const popupContent = `
+                    <b>${street.name}</b><br>
+                    <i>${street.type}</i><br>
+                    <b>${street.hero}</b><br>
+                    ${street.info}<br>
+                    <small>Нажмите на карточку героя, чтобы узнать подробнее</small>
+                `;
+                L.marker([street.lat, street.lng]).addTo(map)
+                    .bindPopup(popupContent)
+                    .openPopup();
+            }
+        });
+        
+        // Опционально: добавить маркер для мемориальной доски Астафьева
+        L.marker([58.006979, 56.200545]).addTo(map)
+            .bindPopup('<b>Мемориальная доска В.М. Астафьеву</b><br>ул. Толмачева, 17')
+            .openPopup();
+    }
+
+    // Модальное окно
+    function openModal(heroId) {
+        const hero = heroesData.find(h => h.id === heroId);
+        if (!hero) return;
+        const modal = document.getElementById('heroModal');
+        const modalBody = document.getElementById('modalBody');
+        if (!modal || !modalBody) return;
+        modalBody.innerHTML = `
+            <h3>${hero.name}</h3>
+            <p><strong>${hero.years}</strong> | ${hero.title}</p>
+            ${hero.fullBio}
+            <hr>
+            <p><i class="fas fa-map-pin"></i> <strong>Увековечение:</strong> ${hero.permlink}</p>
+        `;
+        modal.classList.add('active');
+    }
+
+    function closeModal() {
+        const modal = document.getElementById('heroModal');
+        if (modal) modal.classList.remove('active');
+    }
+
+    // Обработчики кликов
+    document.addEventListener('click', (e) => {
+        const card = e.target.closest('.hero-card');
+        if (card) {
+            const heroId = card.getAttribute('data-hero-id');
+            if (heroId) openModal(heroId);
+        }
+        if (e.target.classList.contains('modal-close') || e.target === document.getElementById('heroModal')) {
+            closeModal();
+        }
+    });
+
+    // Запуск
+    renderHeroes();
+    renderStreets();
+    initMap();
+</script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-03-21T20:10:47.365297",
+  "feature_dim": 27,
+  "sample_rate": 8000,
+  "num_workers": 9,
+  "force": true
+}
