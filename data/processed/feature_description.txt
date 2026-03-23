@@ -1,3 +1,0 @@
-Total features: 87
-Acoustic (0-49): MFCC, spectral, prosodic
-Phonetic (50-86): F0, jitter, shimmer, formants, etc.

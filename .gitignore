@@ -1,37 +1,72 @@
-# Игнорируем только аудиофайлы (они большие и не нужны в репозитории)
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+*.egg-info/
+dist/
+build/
+*.egg
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Project-specific: данные (исключаем всё, кроме, возможно, маленьких примеров)
+data/audio/
+data/processed/
+data/raw_annotations_ru.csv  # если содержит чувствительные данные
+data/phonetic_features/      # если сгенерированы из данных
+data/splits/                 # можно исключить, если генерируются скриптами
+# Но оставить пустые папки можно, если добавить .gitkeep
+
+# Результаты экспериментов (модели, логи, графики)
+results/trained_models/
+results/manual_checks/
+results/metrics/
+results/plots/
+results/comparison/
+# Если нужно сохранить пустую структуру, добавьте .gitkeep в папки
+
+# Логи
+logs/
+*.log
+catboost_info/
+
+# Временные файлы
+temp/
+*.tmp
+*.bak
+
+# Конфиги с секретами (если есть)
+# configs/*.secret.yaml
+
+# Документация сгенерированная
+docs/_build/
+
+# Jupyter Notebook (опционально, если не хотите коммитить)
+.notebook_checkpoints/
+.ipynb_checkpoints/
+
+# Файлы, создаваемые при обучении/аугментации
 *.wav
 *.mp3
-*.flac
-*.ogg
-*.m4a
-*.aac
-*.opus
 *.npy
-# Игнорируем виртуальное окружение (оно не должно быть в репозитории)
-data/audio
-data/processed/augmented_8khz
-venv/
-.venv/
-env/
-ENV/
+*.pkl
+*.pth
+*.pt
+*.onnx
 
-# Игнорируем системные файлы и кэш
-__pycache__/
-*.pyc
-*.pyo
-.pytest_cache/
-.ipynb_checkpoints/
-*.log
-.DS_Store
+# Системные
 Thumbs.db
-
-# Всё остальное включаем в репозиторий:
-# - все скрипты (src/ и scripts/)
-# - конфиги (configs/)
-# - файлы разбиения (data/splits/)
-# - извлеченные признаки (data/processed/*.npy)
-# - обученные модели (results/trained_models/)
-# - метрики (results/metrics/)
-# - графики (results/plots/)
-# - ноутбуки (notebooks/)
-# - документацию и т.д.
+desktop.ini
