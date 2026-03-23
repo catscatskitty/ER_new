@@ -12,11 +12,12 @@ training:
       policy: "float16"
   
   deep_learning:
-    batch_size: 64
+    batch_size: 32
     epochs: 50
-    early_stopping_patience: 3
-    learning_rate: 0.005
-    optimizer: "adam"
+    early_stopping_patience: 5
+    learning_rate: 0.01
+    weight_decay: 0.0001
+    optimizer: "adamw"
   
   class_weights:
     enabled: true

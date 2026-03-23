@@ -8,6 +8,8 @@
 *.opus
 
 # Игнорируем виртуальное окружение (оно не должно быть в репозитории)
+data/audio
+data/processed/augmented_8khz
 venv/
 .venv/
 env/
