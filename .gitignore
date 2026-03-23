@@ -10,6 +10,8 @@
 # Игнорируем виртуальное окружение (оно не должно быть в репозитории)
 data/audio
 data/processed/augmented_8khz
+data/processed/spectrograms
+data/processed/mfcc_sequences
 venv/
 .venv/
 env/
