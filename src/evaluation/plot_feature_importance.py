@@ -1,75 +1,38 @@
-import matplotlib.pyplot as plt
 import numpy as np
-import json
+import matplotlib.pyplot as plt
 from pathlib import Path
-import logging
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
-def plot_feature_importance():
-    """
-    Построение графиков важности признаков
-    """
-    metrics_dir = Path('results/metrics')
-    plots_dir = Path('results/plots')
-    plots_dir.mkdir(parents=True, exist_ok=True)
+def plot_feature_importance(importance_dict, feature_names, 
+                            save_path='results/plots/feature_importance.png', 
+                            top_n=20):
+    """Построение графика важности признаков"""
+    fig, axes = plt.subplots(len(importance_dict), 1, 
+                              figsize=(12, 4 * len(importance_dict)))
     
-    # Загрузка важности признаков из Random Forest
-    rf_metrics_file = metrics_dir / 'random_forest_metrics.json'
+    if len(importance_dict) == 1:
+        axes = [axes]
     
-    if not rf_metrics_file.exists():
-        logger.warning("Нет данных о важности признаков")
-        return
+    for idx, (model_name, importance) in enumerate(importance_dict.items()):
+        if importance is None:
+            axes[idx].text(0.5, 0.5, f'{model_name}: no feature importance available', 
+                          ha='center', va='center')
+            axes[idx].set_title(model_name)
+            continue
+        
+        # Сортировка
+        sorted_idx = np.argsort(importance)[::-1][:top_n]
+        sorted_importance = importance[sorted_idx]
+        sorted_names = [feature_names[i] for i in sorted_idx]
+        
+        axes[idx].barh(range(len(sorted_importance)), sorted_importance, color='#2E86AB')
+        axes[idx].set_yticks(range(len(sorted_importance)))
+        axes[idx].set_yticklabels(sorted_names)
+        axes[idx].set_xlabel('Importance')
+        axes[idx].set_title(f'{model_name} - Top {top_n} Features')
+        axes[idx].invert_yaxis()
     
-    with open(rf_metrics_file, 'r', encoding='utf-8') as f:
-        data = json.load(f)
-    
-    if 'feature_importance' not in data:
-        logger.warning("Нет данных о важности признаков в файле")
-        return
-    
-    importance = np.array(data['feature_importance'])
-    
-    # Загрузка названий признаков
-    feature_names_file = Path('data/processed/feature_names.txt')
-    if feature_names_file.exists():
-        with open(feature_names_file, 'r', encoding='utf-8') as f:
-            feature_names = [line.strip() for line in f.readlines()]
-    else:
-        feature_names = [f'Feature_{i}' for i in range(len(importance))]
-    
-    # Сортировка по важности
-    sorted_idx = np.argsort(importance)[::-1]
-    
-    # Топ-20 признаков
-    top_n = min(20, len(importance))
-    
-    plt.figure(figsize=(12, 8))
-    
-    plt.barh(range(top_n), importance[sorted_idx[:top_n]][::-1])
-    plt.yticks(range(top_n), [feature_names[i] for i in sorted_idx[:top_n]][::-1])
-    
-    plt.xlabel('Важность')
-    plt.title('Топ-20 наиболее важных признаков (Random Forest)')
     plt.tight_layout()
-    
-    plt.savefig(plots_dir / 'feature_importance_top20.png', dpi=150, bbox_inches='tight')
-    plt.savefig(plots_dir / 'feature_importance_top20.pdf', bbox_inches='tight')
-    
-    # Все признаки
-    plt.figure(figsize=(14, 10))
-    
-    plt.barh(range(len(importance)), importance[sorted_idx])
-    plt.yticks(range(len(importance)), [feature_names[i] for i in sorted_idx], fontsize=6)
-    
-    plt.xlabel('Важность')
-    plt.title('Важность всех признаков (Random Forest)')
-    plt.tight_layout()
-    
-    plt.savefig(plots_dir / 'feature_importance_all.png', dpi=150, bbox_inches='tight')
-    
-    logger.info(f"Графики важности признаков сохранены в {plots_dir}")
-
-if __name__ == "__main__":
-    plot_feature_importance()
+    plt.savefig(save_path, dpi=150)
+    plt.close()
+    print(f"Feature importance saved to {save_path}")

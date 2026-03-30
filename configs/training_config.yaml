@@ -1,24 +1,63 @@
-training:
-  random_seed: 42
-  train_ratio: 0.8
-  val_ratio: 0.1
-  test_ratio: 0.1
-  
-  gpu:
-    enabled: true
-    device: "0"
-    mixed_precision:
-      enabled: true
-      policy: "float16"
-  
-  deep_learning:
-    batch_size: 32
-    epochs: 50
-    early_stopping_patience: 5
-    learning_rate: 0.01
-    weight_decay: 0.0001
-    optimizer: "adamw"
-  
-  class_weights:
-    enabled: true
-    mode: "balanced"
+# Общие настройки
+seed: 42
+device: auto  # auto, cpu, cuda
+sample_rate: 8000
+duration: 5
+
+# Размерности признаков
+acoustic_dim: 38
+phonetic_dim: 27
+combined_dim: 65
+n_mels: 128
+n_mfcc: 13
+
+# Традиционные модели
+traditional:
+  logistic:
+    max_iter: 1000
+  random_forest:
+    n_estimators: 100
+    max_depth: 20
+  xgboost:
+    n_estimators: 100
+    max_depth: 6
+    learning_rate: 0.1
+  catboost:
+    iterations: 100
+    learning_rate: 0.1
+    depth: 6
+
+# 2D CNN на спектрограммах
+cnn:
+  batch_size: 32
+  epochs: 50
+  lr: 0.001
+  dropout: 0.5
+  n_mels: 128
+
+# LSTM на MFCC
+lstm:
+  batch_size: 32
+  epochs: 50
+  lr: 0.001
+  hidden_size: 128
+  num_layers: 2
+  dropout: 0.3
+  bidirectional: true
+
+# Гибридная CNN+LSTM на спектрограммах
+hybrid:
+  batch_size: 32
+  epochs: 50
+  lr: 0.001
+  cnn_channels: 64
+  lstm_hidden: 128
+  num_layers: 2
+  dropout: 0.3
+
+# Трёхмодальная модель
+trimodal:
+  batch_size: 16
+  epochs: 30
+  lr: 0.0005
+  dropout: 0.3

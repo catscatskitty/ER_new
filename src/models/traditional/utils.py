@@ -1,71 +1,41 @@
-"""
-Вспомогательные функции для традиционных моделей
-Путь: src/models/traditional/utils.py
-"""
-
 import numpy as np
-import pickle
+import joblib
 from pathlib import Path
 
 
-def save_model(model, model_path, scaler=None, feature_names=None):
-    """
-    Сохранение модели и сопутствующих объектов
-    """
+def save_model(model, scaler, model_path):
+    """Сохранение модели и scaler"""
     model_path = Path(model_path)
     model_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    model_dict = {
-        'model': model,
-        'scaler': scaler,
-        'feature_names': feature_names
-    }
-    
-    with open(model_path, 'wb') as f:
-        pickle.dump(model_dict, f)
-    
-    print(f"Модель сохранена: {model_path}")
+    joblib.dump({'model': model, 'scaler': scaler}, model_path)
 
 
 def load_model(model_path):
-    """
-    Загрузка модели
-    """
-    with open(model_path, 'rb') as f:
-        model_dict = pickle.load(f)
-    
-    return model_dict['model'], model_dict.get('scaler'), model_dict.get('feature_names')
+    """Загрузка модели и scaler"""
+    data = joblib.load(model_path)
+    return data.get('model'), data.get('scaler')
 
 
-def normalize_features(X_train, X_val=None, X_test=None):
-    """
-    Нормализация признаков (StandardScaler)
-    """
-    from sklearn.preprocessing import StandardScaler
+def get_model_metrics(model, X_test, y_test):
+    """Получение метрик модели"""
+    from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
     
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
+    y_pred = model.predict(X_test)
     
-    result = [X_train_scaled]
-    
-    if X_val is not None:
-        result.append(scaler.transform(X_val))
-    if X_test is not None:
-        result.append(scaler.transform(X_test))
-    
-    if len(result) == 1:
-        return result[0], scaler
+    return {
+        'accuracy': accuracy_score(y_test, y_pred),
+        'f1_weighted': f1_score(y_test, y_pred, average='weighted'),
+        'confusion_matrix': confusion_matrix(y_test, y_pred).tolist()
+    }
+
+
+def get_feature_importance(model, feature_names):
+    """Получение важности признаков для моделей, поддерживающих это"""
+    if hasattr(model, 'feature_importances_'):
+        importance = model.feature_importances_
+        return sorted(zip(feature_names, importance), key=lambda x: x[1], reverse=True)
+    elif hasattr(model, 'coef_'):
+        importance = np.abs(model.coef_[0])
+        return sorted(zip(feature_names, importance), key=lambda x: x[1], reverse=True)
     else:
-        return (*result, scaler)
-
-
-def get_class_weights(y):
-    """
-    Вычисление весов классов для несбалансированных данных
-    """
-    from sklearn.utils.class_weight import compute_class_weight
-    
-    classes = np.unique(y)
-    weights = compute_class_weight('balanced', classes=classes, y=y)
-    
-    return dict(zip(classes, weights))
+        return None

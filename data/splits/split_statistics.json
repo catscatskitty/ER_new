@@ -1,22 +1,20 @@
 {
-  "total": {
-    "human": 39796,
-    "robot": 38444,
-    "all": 78240
-  },
+  "total_files": 66913,
+  "human": 33312,
+  "robot": 33601,
   "train": {
-    "human": 27857,
-    "robot": 26910,
-    "all": 54767
+    "files": 46838,
+    "human": 23318,
+    "robot": 23520
   },
   "val": {
-    "human": 5969,
-    "robot": 5766,
-    "all": 11735
+    "files": 10036,
+    "human": 4996,
+    "robot": 5040
   },
   "test": {
-    "human": 5970,
-    "robot": 5768,
-    "all": 11738
+    "files": 10039,
+    "human": 4998,
+    "robot": 5041
   }
 }

@@ -1,10 +1,16 @@
 paths:
-  project_root: ./
-  data_root: ./data
-  audio_root: ./data/audio
-  processed_root: ./data/processed
-  splits_root: ./data/splits
-  models_root: ./results/trained_models
-  metrics_root: ./results/metrics
-  plots_root: ./results/plots
-  manual_checks: ./results/manual_checks
+  audio_dir: data/audio
+  augmented_dir: data/processed/augmented_8khz
+  splits_dir: data/splits
+  processed_dir: data/processed
+  models_root: results/trained_models
+  metrics_dir: results/metrics
+  plots_dir: results/plots
+  manual_checks_dir: results/manual_checks
+  
+  # Поддиректории для признаков
+  acoustic_dir: data/processed/acoustic
+  phonetic_dir: data/processed/phonetic
+  combined_dir: data/processed/combined
+  spectrograms_dir: data/processed/spectrograms
+  mfcc_dir: data/processed/mfcc_sequences

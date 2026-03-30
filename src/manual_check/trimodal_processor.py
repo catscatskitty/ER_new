@@ -1,153 +1,76 @@
-"""
-Обработка аудио трёхмодальной моделью (спектрограммы + MFCC + фонетика)
-"""
-
 import numpy as np
 import torch
-import torch.nn.functional as F
 from pathlib import Path
 import sys
-import traceback
 
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
-from src.models.deep_learning.train_trimodal import TriModalModel
-from src.features.inference_spectrogram import extract_spectrogram
-from src.features.inference_mfcc import extract_mfcc_sequence
-from src.linguistic.inference_phonetic import extract_phonetic_from_audio
+from src.models.deep_learning.trimodal import TriModalModel
+from src.features.spectrogram.extract_spectrogram import SpectrogramExtractor
+from src.features.mfcc.extract_mfcc_sequence import MFCCSequenceExtractor
+from src.features.phonetic.extract_phonetic_features import PhoneticFeatureExtractor
 
 
 class TriModalProcessor:
     def __init__(self, models_root):
-        if isinstance(models_root, str):
-            self.models_root = Path(models_root)
-        else:
-            self.models_root = models_root
-
-        self.model = None
+        self.models_root = Path(models_root)
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.sample_rate = 8000
-
-        print(f"\n=== Инициализация TriModalProcessor ===")
-        print(f"Устройство: {self.device}")
-        print(f"Поиск моделей в: {self.models_root}")
+        
+        self.spec_extractor = SpectrogramExtractor()
+        self.mfcc_extractor = MFCCSequenceExtractor()
+        self.phonetic_extractor = PhoneticFeatureExtractor()
+        
         self.load_models()
-
+    
     def load_models(self):
-        """Загрузка трёхмодальной модели"""
-        print(f"\n--- Загрузка трёхмодальной модели ---")
-        model_dir = self.models_root / 'trimodal'
-        model_path = model_dir / 'best_trimodal.pth'
-
+        model_path = self.models_root / 'trimodal' / 'best_trimodal.pth'
+        norm_path = self.models_root / 'trimodal' / 'trimodal_normalization.npy'
+        
         if not model_path.exists():
-            print(f"⚠️ Модель не найдена: {model_path}")
-            return 0
-
-        try:
-            model = TriModalModel().to(self.device)
-            checkpoint = torch.load(model_path, map_location='cpu', weights_only=False)
-
-            # Извлекаем state_dict (может быть в поле 'model_state_dict')
-            if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
-                state_dict = checkpoint['model_state_dict']
-            else:
-                state_dict = checkpoint
-
-            model.load_state_dict(state_dict)
-            model.eval()
-            self.model = model
-            print(f"  ✅ Трёхмодальная модель загружена")
-            return 1
-        except Exception as e:
-            print(f"  ❌ Ошибка загрузки: {e}")
-            traceback.print_exc()
-            return 0
-
+            print(f"Model not found: {model_path}")
+            return
+        
+        norm_data = np.load(norm_path, allow_pickle=True).item()
+        self.spec_mean, self.spec_std = norm_data['spec']['mean'], norm_data['spec']['std']
+        self.mfcc_mean, self.mfcc_std = norm_data['mfcc']['mean'], norm_data['mfcc']['std']
+        self.phon_mean, self.phon_std = norm_data['phon']['mean'], norm_data['phon']['std']
+        
+        self.model = TriModalModel().to(self.device)
+        self.model.load_state_dict(torch.load(model_path, map_location='cpu'))
+        self.model.eval()
+        print("TriModal model loaded")
+    
     def classify_audio(self, audio_path):
-        if self.model is None:
-            print("Нет загруженной трёхмодальной модели!")
+        if not hasattr(self, 'model'):
             return None
-
-        print("\n=== Начало классификации ===")
-
-        # 1. Спектрограмма
-        print("Извлечение спектрограммы...")
-        try:
-            spec = extract_spectrogram(audio_path, sample_rate=self.sample_rate)
-            if spec is None:
-                print("❌ Ошибка: спектрограмма не извлечена")
-                return None
-            print(f"✅ Спектрограмма: форма {spec.shape}")
-        except Exception as e:
-            print(f"❌ Ошибка при извлечении спектрограммы: {e}")
-            traceback.print_exc()
+        
+        spec = self.spec_extractor.extract_from_file(audio_path)
+        mfcc = self.mfcc_extractor.extract_from_file(audio_path)
+        phon = self.phonetic_extractor.extract_all(audio_path)
+        
+        if spec is None or mfcc is None or phon is None:
             return None
-
-        # 2. MFCC
-        print("Извлечение MFCC...")
-        try:
-            mfcc = extract_mfcc_sequence(audio_path, sample_rate=self.sample_rate)
-            if mfcc is None:
-                print("❌ Ошибка: MFCC не извлечены")
-                return None
-            print(f"✅ MFCC: форма {mfcc.shape}")
-        except Exception as e:
-            print(f"❌ Ошибка при извлечении MFCC: {e}")
-            traceback.print_exc()
-            return None
-
-        # 3. Фонетика
-        print("Извлечение фонетических признаков...")
-        try:
-            phon = extract_phonetic_from_audio(audio_path, sample_rate=self.sample_rate)
-            if phon is None:
-                print("❌ Ошибка: фонетические признаки не извлечены")
-                return None
-            print(f"✅ Фонетика: форма {phon.shape}")
-        except Exception as e:
-            print(f"❌ Ошибка при извлечении фонетики: {e}")
-            traceback.print_exc()
-            return None
-
-        # Преобразуем в тензоры и добавляем batch dimension
-        try:
-            spec_t = torch.FloatTensor(spec).unsqueeze(0).unsqueeze(0).to(self.device)  # (1,1,128,128)
-            mfcc_t = torch.FloatTensor(mfcc).unsqueeze(0).to(self.device)                # (1,128,13)
-            phon_t = torch.FloatTensor(phon).unsqueeze(0).to(self.device)                # (1,27)
-            print("✅ Тензоры созданы")
-        except Exception as e:
-            print(f"❌ Ошибка создания тензоров: {e}")
-            traceback.print_exc()
-            return None
-
-        # Инференс
-        try:
-            with torch.no_grad():
-                outputs = self.model(spec_t, mfcc_t, phon_t)
-                probs = F.softmax(outputs, dim=1)[0]
-                pred_class = torch.argmax(probs).item()
-                confidence = probs[pred_class].item()
-                pred_label = 'human' if pred_class == 0 else 'robot'
-                print(f"✅ Инференс выполнен: {pred_label} ({confidence:.2%})")
-        except Exception as e:
-            print(f"❌ Ошибка инференса: {e}")
-            traceback.print_exc()
-            return None
-
-        # Формируем результат
-        results = {
-            'model_predictions': {
-                'trimodal': {
-                    'prediction': pred_label,
-                    'confidence': confidence,
-                    'class': pred_class,
-                    'probabilities': probs.cpu().numpy().tolist()
-                }
-            },
+        
+        spec = (spec - self.spec_mean) / (self.spec_std + 1e-8)
+        mfcc = (mfcc - self.mfcc_mean) / (self.mfcc_std + 1e-8)
+        phon = (phon - self.phon_mean) / (self.phon_std + 1e-8)
+        
+        spec_t = torch.FloatTensor(spec).unsqueeze(0).unsqueeze(0).to(self.device)
+        mfcc_t = torch.FloatTensor(mfcc).unsqueeze(0).to(self.device)
+        phon_t = torch.FloatTensor(phon).unsqueeze(0).to(self.device)
+        
+        with torch.no_grad():
+            outputs = self.model(spec_t, mfcc_t, phon_t)
+            probs = torch.softmax(outputs, dim=1)[0]
+            pred_class = torch.argmax(probs).item()
+            confidence = probs[pred_class].item()
+            pred_label = 'human' if pred_class == 0 else 'robot'
+        
+        return {
+            'model_predictions': {'trimodal': {'prediction': pred_label, 'confidence': confidence}},
             'human_votes': 1 if pred_label == 'human' else 0,
             'robot_votes': 1 if pred_label == 'robot' else 0,
             'total_confidence': confidence,
             'final_prediction': pred_label,
             'average_confidence': confidence
         }
-        return results

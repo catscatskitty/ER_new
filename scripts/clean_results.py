@@ -1,60 +1,45 @@
 #!/usr/bin/env python
-"""
-Очистка результатов экспериментов
-"""
-
-import os
 import shutil
 from pathlib import Path
-import argparse
 
-def clean_results(confirm: bool = True):
-    """
-    Очистка папки с результатами
-    """
-    results_dir = Path('results')
-    
-    if not results_dir.exists():
-        print("Папка results не найдена")
-        return
-    
-    print("=" * 60)
-    print("ОЧИСТКА РЕЗУЛЬТАТОВ")
-    print("=" * 60)
-    
-    # Подсчет файлов для удаления
-    total_files = 0
-    for root, dirs, files in os.walk(results_dir):
-        total_files += len(files)
-    
-    print(f"Будет удалено {total_files} файлов в {results_dir}")
-    
-    if confirm:
-        response = input("Продолжить? (y/n): ")
-        if response.lower() != 'y':
-            print("Операция отменена")
-            return
-    
-    # Удаление
-    try:
-        shutil.rmtree(results_dir)
-        print(f"✅ Папка {results_dir} удалена")
-        
-        # Создание заново
-        results_dir.mkdir(parents=True, exist_ok=True)
-        (results_dir / 'trained_models').mkdir(exist_ok=True)
-        (results_dir / 'metrics').mkdir(exist_ok=True)
-        (results_dir / 'plots').mkdir(exist_ok=True)
-        (results_dir / 'manual_checks').mkdir(exist_ok=True)
-        
-        print("✅ Структура папок восстановлена")
-        
-    except Exception as e:
-        print(f"❌ Ошибка при очистке: {e}")
 
-if __name__ == "__main__":
+def clean_results(keep_last=True):
+    """Очистка результатов (сохраняет только последние)"""
+    results_root = Path('results')
+    
+    # Очистка manual_checks
+    manual_dir = results_root / 'manual_checks'
+    if manual_dir.exists():
+        files = list(manual_dir.glob('batch_*.csv'))
+        if keep_last and files:
+            files.sort(key=lambda x: x.stat().st_mtime)
+            for f in files[:-1]:
+                f.unlink()
+                print(f"Deleted: {f}")
+    
+    # Очистка metrics
+    metrics_dir = results_root / 'metrics'
+    if metrics_dir.exists():
+        for pattern in ['*_metrics.json', '*_history.json', '*_comparison_*.csv']:
+            files = list(metrics_dir.glob(pattern))
+            if keep_last and files:
+                files.sort(key=lambda x: x.stat().st_mtime)
+                for f in files[:-1]:
+                    f.unlink()
+                    print(f"Deleted: {f}")
+    
+    print("Cleanup completed!")
+
+
+def main():
+    import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--force', action='store_true', help='Принудительная очистка без подтверждения')
+    parser.add_argument('--keep-last', action='store_true', default=True)
+    parser.add_argument('--delete-all', action='store_true')
     args = parser.parse_args()
     
-    clean_results(confirm=not args.force)
+    clean_results(keep_last=not args.delete_all)
+
+
+if __name__ == "__main__":
+    main()

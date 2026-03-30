@@ -4,6 +4,7 @@ from pathlib import Path
 import pandas as pd
 from datetime import datetime
 import numpy as np
+import traceback
 
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
@@ -28,8 +29,7 @@ class ManualCheckerApp:
         try:
             paths_config = self.config_loader.load_config('paths_config')
             self.models_root = Path(paths_config['paths']['models_root'])
-        except Exception as e:
-            print(f"Ошибка загрузки конфига: {e}")
+        except Exception:
             self.models_root = Path('results/trained_models')
 
         self.manual_checks_dir = Path('results/manual_checks')
@@ -42,95 +42,114 @@ class ManualCheckerApp:
         self.init_session_state()
 
     def init_session_state(self):
-        if 'current_audio' not in st.session_state:
-            st.session_state.current_audio = None
-        if 'current_results' not in st.session_state:
-            st.session_state.current_results = None
-        if 'audio_name' not in st.session_state:
-            st.session_state.audio_name = None
-        if 'model_type' not in st.session_state:
-            st.session_state.model_type = 'neural'
-        if 'use_phonetic' not in st.session_state:
-            st.session_state.use_phonetic = False
-        if 'neural_processor' not in st.session_state:
-            st.session_state.neural_processor = None
-        if 'traditional_processor' not in st.session_state:
-            st.session_state.traditional_processor = None
-        if 'trimodal_processor' not in st.session_state:
-            st.session_state.trimodal_processor = None
-        if 'models_loaded' not in st.session_state:
-            st.session_state.models_loaded = False
+        defaults = {
+            'current_audio': None,
+            'current_results': None,
+            'audio_name': None,
+            'model_type': 'neural',
+            'use_phonetic': False,
+            'neural_processor': None,
+            'traditional_processor': None,
+            'trimodal_processor': None,
+            'models_loaded': False,
+            'loaded_models_list': []
+        }
+        for key, val in defaults.items():
+            if key not in st.session_state:
+                st.session_state[key] = val
+
+    def reset_models(self):
+        """Сбросить все процессоры и состояние загрузки"""
+        st.session_state.neural_processor = None
+        st.session_state.traditional_processor = None
+        st.session_state.trimodal_processor = None
+        st.session_state.models_loaded = False
+        st.session_state.loaded_models_list = []
 
     def load_models(self):
         """Загружает модели для выбранного типа"""
         model_type = st.session_state.model_type
-        if model_type == 'neural':
-            with st.spinner("Загрузка нейросетевых моделей..."):
-                processor = AudioProcessor(self.models_root, st.session_state.use_phonetic)
-                if processor and processor.models:
-                    st.session_state.neural_processor = processor
-                    st.session_state.models_loaded = True
-                    st.success(f"Загружено нейросетевых моделей: {len(processor.models)}")
-                else:
-                    st.error("Нейросетевые модели не найдены")
-        elif model_type == 'traditional':
-            with st.spinner("Загрузка традиционных моделей..."):
-                processor = TraditionalModelProcessor(self.models_root)
-                if processor and processor.models:
-                    st.session_state.traditional_processor = processor
-                    st.session_state.models_loaded = True
-                    st.success(f"Загружено традиционных моделей: {len(processor.models)}")
-                else:
-                    st.error("Традиционные модели не найдены")
-        else:  # trimodal
-            with st.spinner("Загрузка трёхмодальной модели..."):
-                processor = TriModalProcessor(self.models_root)
-                if processor and processor.model:
-                    st.session_state.trimodal_processor = processor
-                    st.session_state.models_loaded = True
-                    st.success("Трёхмодальная модель загружена")
-                else:
-                    st.error("Трёхмодальная модель не найдена")
+        use_phonetic = st.session_state.use_phonetic
+
+        with st.spinner(f"Загрузка моделей ({model_type})..."):
+            try:
+                if model_type == 'neural':
+                    processor = AudioProcessor(self.models_root, use_phonetic)
+                    if processor and processor.models:
+                        st.session_state.neural_processor = processor
+                        st.session_state.loaded_models_list = list(processor.models.keys())
+                        st.session_state.models_loaded = True
+                        st.success(f"Загружено нейросетевых моделей: {len(processor.models)}")
+                    else:
+                        st.error("Нейросетевые модели не найдены. Проверьте папку results/trained_models/torch_models/")
+                        self.reset_models()
+
+                elif model_type == 'traditional':
+                    processor = TraditionalModelProcessor(self.models_root)
+                    if processor and processor.models:
+                        st.session_state.traditional_processor = processor
+                        st.session_state.loaded_models_list = list(processor.models.keys())
+                        st.session_state.models_loaded = True
+                        st.success(f"Загружено традиционных моделей: {len(processor.models)}")
+                    else:
+                        st.error("Традиционные модели не найдены. Проверьте папки results/trained_models/logistic/, random_forest/, xgboost/, catboost/")
+                        self.reset_models()
+
+                else:  # trimodal
+                    processor = TriModalProcessor(self.models_root)
+                    if processor and processor.model:
+                        st.session_state.trimodal_processor = processor
+                        st.session_state.loaded_models_list = ['trimodal']
+                        st.session_state.models_loaded = True
+                        st.success("Трёхмодальная модель загружена")
+                    else:
+                        st.error("Трёхмодальная модель не найдена. Проверьте results/trained_models/trimodal/best_trimodal.pth")
+                        self.reset_models()
+
+            except Exception as e:
+                st.error(f"Ошибка загрузки: {e}")
+                traceback.print_exc()
+                self.reset_models()
 
     def get_processor(self):
-        """Возвращает процессор для выбранного типа"""
-        if st.session_state.model_type == 'neural':
+        """Возвращает активный процессор, если он загружен и соответствует текущему типу"""
+        if not st.session_state.models_loaded:
+            return None
+        model_type = st.session_state.model_type
+        if model_type == 'neural':
             return st.session_state.neural_processor
-        elif st.session_state.model_type == 'traditional':
+        elif model_type == 'traditional':
             return st.session_state.traditional_processor
         else:
             return st.session_state.trimodal_processor
 
     def run(self):
+        # ---- Боковая панель ----
         with st.sidebar:
             st.header("Настройки")
 
-            options = ['neural', 'traditional', 'trimodal']
-            format_func = {
+            model_options = {
                 'neural': '🧠 Нейросетевые (акустика)',
                 'traditional': '📊 Традиционные ML',
                 'trimodal': '🎵 Трёхмодальная (спектрограммы+MFCC+фонетика)'
             }
-            current_index = options.index(st.session_state.model_type)
-
-            model_type = st.selectbox(
+            # Используем отдельный ключ, чтобы избежать конфликтов
+            selected_type = st.selectbox(
                 "Тип модели",
-                options=options,
-                format_func=lambda x: format_func.get(x, x),
-                index=current_index,
+                options=list(model_options.keys()),
+                format_func=lambda x: model_options[x],
+                index=list(model_options.keys()).index(st.session_state.model_type),
                 key="model_type_select"
             )
 
-            if model_type != st.session_state.model_type:
-                st.session_state.model_type = model_type
-                st.session_state.models_loaded = False
-                # Сбрасываем процессоры, чтобы не было путаницы
-                st.session_state.neural_processor = None
-                st.session_state.traditional_processor = None
-                st.session_state.trimodal_processor = None
+            # При смене типа полностью сбрасываем всё состояние загрузки
+            if selected_type != st.session_state.model_type:
+                st.session_state.model_type = selected_type
+                self.reset_models()
                 st.rerun()
 
-            if model_type == 'neural':
+            # Опция фонетики только для нейросетевых
+            if st.session_state.model_type == 'neural':
                 use_phonetic = st.checkbox(
                     "Использовать фонетические признаки (медленнее)",
                     value=st.session_state.use_phonetic,
@@ -138,45 +157,42 @@ class ManualCheckerApp:
                 )
                 if use_phonetic != st.session_state.use_phonetic:
                     st.session_state.use_phonetic = use_phonetic
-                    st.session_state.models_loaded = False
+                    # При смене фонетики модели нужно перезагрузить
+                    if st.session_state.models_loaded:
+                        self.reset_models()
                     st.rerun()
-            else:
-                st.session_state.use_phonetic = False
 
+            # Кнопка загрузки моделей
             if st.button("Загрузить модели", use_container_width=True):
                 self.load_models()
                 st.rerun()
 
-            # Отображаем информацию о моделях только для выбранного типа
-            if st.session_state.models_loaded:
-                if model_type == 'neural' and st.session_state.neural_processor and st.session_state.neural_processor.models:
-                    st.markdown("**🧠 Нейросетевые:**")
-                    for name in st.session_state.neural_processor.models.keys():
-                        st.markdown(f"- {name.upper()}")
-                elif model_type == 'traditional' and st.session_state.traditional_processor and st.session_state.traditional_processor.models:
-                    st.markdown("**📊 Традиционные:**")
-                    display = {
-                        'logistic': 'Logistic Regression',
-                        'random_forest': 'Random Forest',
-                        'xgboost': 'XGBoost',
-                        'catboost': 'CatBoost'
-                    }
-                    for name in st.session_state.traditional_processor.models.keys():
-                        st.markdown(f"- {display.get(name, name)}")
-                elif model_type == 'trimodal' and st.session_state.trimodal_processor and st.session_state.trimodal_processor.model:
-                    st.markdown("**🎵 Трёхмодальная:** загружена")
-                else:
-                    st.info(f"Модели типа {model_type} не загружены")
+            # Отображение загруженных моделей
+            if st.session_state.models_loaded and st.session_state.loaded_models_list:
+                st.markdown("---")
+                st.subheader("Загруженные модели")
+                for model_name in st.session_state.loaded_models_list:
+                    display_name = {
+                        'cnn': 'CNN', 'lstm': 'LSTM', 'hybrid': 'Hybrid', 'mlp': 'MLP',
+                        'logistic': 'Logistic Regression', 'random_forest': 'Random Forest',
+                        'xgboost': 'XGBoost', 'catboost': 'CatBoost',
+                        'trimodal': 'Трёхмодальная'
+                    }.get(model_name, model_name)
+                    st.markdown(f"- {display_name}")
+                if st.session_state.model_type == 'neural' and st.session_state.use_phonetic:
+                    st.info("📝 Используются фонетические признаки")
             else:
-                st.info("Модели не загружены")
+                st.info("Модели не загружены. Нажмите кнопку выше.")
 
+            # Справка по путям
             with st.expander("Где искать модели"):
                 st.markdown(f"""
-                **Нейросетевые модели:** `{self.models_root}/torch_models/`  
-                **Традиционные модели:** `{self.models_root}/logistic/` `{self.models_root}/random_forest/` `{self.models_root}/xgboost/` `{self.models_root}/catboost/`  
-                **Трёхмодальная модель:** `{self.models_root}/trimodal/best_trimodal.pth`
+                **Нейросетевые:** `{self.models_root}/torch_models/`  
+                **Традиционные:** `{self.models_root}/logistic/`, `random_forest/`, `xgboost/`, `catboost/`  
+                **Трёхмодальная:** `{self.models_root}/trimodal/best_trimodal.pth`
                 """)
 
+            # Статистика
             st.markdown("---")
             st.subheader("Статистика")
             history = self.history_manager.get_history()
@@ -190,16 +206,9 @@ class ManualCheckerApp:
             else:
                 st.metric("Всего проверок", 0)
 
+        # ---- Основная область ----
         if not st.session_state.models_loaded:
-            col1, col2, col3 = st.columns([1, 2, 1])
-            with col2:
-                st.markdown("""
-                ## 👋 Добро пожаловать!
-                Для начала работы загрузите модели в боковой панели.
-                
-                ### Поддерживаемые форматы:
-                WAV, MP3, OGG, FLAC, M4A
-                """)
+            st.info("Для начала работы загрузите модели в боковой панели.")
             return
 
         tab1, tab2, tab3 = st.tabs(["📂 Загрузка файла", "🎙️ Запись с микрофона", "📊 Пакетная обработка"])
@@ -212,7 +221,11 @@ class ManualCheckerApp:
 
     def render_upload_tab(self):
         st.header("Загрузите аудиофайл для анализа")
-        uploaded_file = st.file_uploader("Выберите файл", type=['wav', 'mp3', 'ogg', 'flac', 'm4a'])
+        uploaded_file = st.file_uploader(
+            "Выберите файл",
+            type=['wav', 'mp3', 'ogg', 'flac', 'm4a'],
+            key="uploader"
+        )
         if uploaded_file is not None:
             temp_path = Path('temp') / uploaded_file.name
             with open(temp_path, 'wb') as f:
@@ -238,26 +251,36 @@ class ManualCheckerApp:
         uploaded_files = st.file_uploader(
             "Выберите несколько файлов",
             type=['wav', 'mp3', 'ogg', 'flac', 'm4a'],
-            accept_multiple_files=True
+            accept_multiple_files=True,
+            key="batch_uploader"
         )
         if uploaded_files and st.button("Запустить обработку", type="primary"):
             results = []
             progress_bar = st.progress(0)
             status_text = st.empty()
             processor = self.get_processor()
+            if processor is None:
+                st.error("Процессор не загружен. Попробуйте перезагрузить модели.")
+                return
+
             for i, uploaded_file in enumerate(uploaded_files):
                 status_text.text(f"Обработка {i+1}/{len(uploaded_files)}: {uploaded_file.name}")
                 temp_path = Path('temp') / uploaded_file.name
                 with open(temp_path, 'wb') as f:
                     f.write(uploaded_file.getbuffer())
 
-                result = processor.classify_audio(temp_path) if processor else None
-
+                result = processor.classify_audio(temp_path)
                 if result:
                     results.append({
                         'Файл': uploaded_file.name,
                         'Предсказание': 'Человек' if result['final_prediction'] == 'human' else 'Робот',
                         'Уверенность': f"{result['average_confidence']:.1%}"
+                    })
+                else:
+                    results.append({
+                        'Файл': uploaded_file.name,
+                        'Предсказание': 'Ошибка',
+                        'Уверенность': '-'
                     })
                 progress_bar.progress((i + 1) / len(uploaded_files))
 
@@ -270,8 +293,10 @@ class ManualCheckerApp:
                 st.success(f"Результаты сохранены: `{csv_path}`")
 
     def process_current_audio(self):
+        """Обработка текущего аудио (загруженного или записанного)"""
         if st.session_state.current_audio:
             st.audio(str(st.session_state.current_audio))
+
             col1, col2 = st.columns(2)
             with col1:
                 st.subheader("Волновая форма")
@@ -286,12 +311,11 @@ class ManualCheckerApp:
 
             if st.button("Классифицировать", type="primary", use_container_width=True):
                 with st.spinner("Анализ аудио..."):
+                    processor = self.get_processor()
+                    if processor is None:
+                        st.error("Процессор не загружен. Проверьте, что модели загружены.")
+                        return
                     try:
-                        processor = self.get_processor()
-                        if processor is None:
-                            st.error("Процессор не загружен")
-                            return
-
                         result = processor.classify_audio(st.session_state.current_audio)
                         if result:
                             st.session_state.current_results = result
@@ -300,9 +324,8 @@ class ManualCheckerApp:
                         else:
                             st.error("Не удалось классифицировать аудио")
                     except Exception as e:
-                        import traceback
+                        st.error(f"Ошибка при классификации: {e}")
                         traceback.print_exc()
-                        st.error(f"Ошибка: {e}")
 
     def display_results(self, result):
         st.markdown("---")
@@ -321,21 +344,21 @@ class ManualCheckerApp:
 
         st.subheader("Детальные результаты по моделям")
         details = []
-        for model_name, pred in result['model_predictions'].items():
-            clean = model_name.replace('neural_', '').replace('traditional_', '')
-            display = {
+        for model_key, pred in result['model_predictions'].items():
+            pretty_name = {
                 'cnn': 'CNN', 'lstm': 'LSTM', 'hybrid': 'Hybrid', 'mlp': 'MLP',
                 'logistic': 'Logistic Regression', 'random_forest': 'Random Forest',
-                'xgboost': 'XGBoost', 'catboost': 'CatBoost', 'trimodal': 'Трёхмодальная'
-            }.get(clean, clean)
+                'xgboost': 'XGBoost', 'catboost': 'CatBoost',
+                'trimodal': 'Трёхмодальная'
+            }.get(model_key, model_key)
+
             details.append({
-                'Модель': display,
+                'Модель': pretty_name,
                 'Предсказание': '👤 Человек' if pred['prediction'] == 'human' else '🤖 Робот',
                 'Уверенность': f"{pred['confidence']:.1%}"
             })
         st.dataframe(pd.DataFrame(details), use_container_width=True)
 
-        st.subheader("Уверенность моделей")
         fig = self.visualizer.plot_confidence_bars(result)
         if fig:
             st.plotly_chart(fig, use_container_width=True)
