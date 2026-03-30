@@ -1,72 +1,108 @@
-# Python
+# =========================
+# 🐍 Python
+# =========================
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
-.Python
-env/
+*.pyo
+*.pyd
+
+# Виртуальное окружение
 venv/
-ENV/
-env.bak/
-venv.bak/
-*.egg-info/
-dist/
-build/
-*.egg
+.venv/
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.DS_Store
+# =========================
+# 🔊 RAW аудио (очень важно)
+# =========================
 
-# Project-specific: данные (исключаем всё, кроме, возможно, маленьких примеров)
-data/audio/
-data/processed/
-data/raw_annotations_ru.csv  # если содержит чувствительные данные
-data/phonetic_features/      # если сгенерированы из данных
-data/splits/                 # можно исключить, если генерируются скриптами
-# Но оставить пустые папки можно, если добавить .gitkeep
+data/audio/**
+!data/audio/**/
+!data/audio/**/.gitkeep
 
-# Результаты экспериментов (модели, логи, графики)
-results/trained_models/
-results/manual_checks/
-results/metrics/
-results/plots/
-results/comparison/
-# Если нужно сохранить пустую структуру, добавьте .gitkeep в папки
+# =========================
+# 🧪 Обработанные данные
+# =========================
 
-# Логи
-logs/
-*.log
-catboost_info/
+data/processed/**
+!data/processed/**/
+!data/processed/**/.gitkeep
 
-# Временные файлы
-temp/
-*.tmp
-*.bak
-
-# Конфиги с секретами (если есть)
-# configs/*.secret.yaml
-
-# Документация сгенерированная
-docs/_build/
-
-# Jupyter Notebook (опционально, если не хотите коммитить)
-.notebook_checkpoints/
-.ipynb_checkpoints/
-
-# Файлы, создаваемые при обучении/аугментации
-*.wav
-*.mp3
+# Конкретные типы (на всякий случай)
 *.npy
+*.npz
 *.pkl
-*.pth
+*.joblib
+
+# =========================
+# 📂 Сплиты (можно оставить!)
+# =========================
+
+# Если хочешь сохранять разбиения — НЕ игнорируй
+# data/splits/
+
+# =========================
+# 🤖 Обученные модели
+# =========================
+
+results/trained_models/**
+!results/trained_models/**/
+!results/trained_models/**/.gitkeep
+
+# веса
 *.pt
+*.pth
+*.ckpt
+*.h5
 *.onnx
 
-# Системные
+# =========================
+# 📊 CatBoost мусор
+# =========================
+
+catboost_info/
+
+# =========================
+# 📈 Результаты / эксперименты
+# =========================
+
+results/**
+!results/**/
+!results/**/.gitkeep
+
+# но НЕ игнорируем trained_models/.gitkeep
+!results/trained_models/**/.gitkeep
+
+# =========================
+# 🧪 Логи / эксперименты
+# =========================
+
+*.log
+
+# =========================
+# 📊 Графики и отчёты
+# =========================
+
+*.png
+*.jpg
+*.jpeg
+*.svg
+*.pdf
+
+# =========================
+# ⚙️ IDE
+# =========================
+
+.vscode/
+.idea/
+
+# =========================
+# 🖥️ OS
+# =========================
+
+.DS_Store
 Thumbs.db
-desktop.ini
+
+# =========================
+# 🔐 Секреты
+# =========================
+
+.env
