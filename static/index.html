@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VoiceShield Desktop</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <nav class="sidebar">
+            <div class="logo">
+                <i class="fas fa-shield-halved"></i>
+                <span>VoiceShield</span>
+            </div>
+            <ul class="nav-links">
+                <li class="active" data-page="dashboard"><i class="fas fa-chart-line"></i> Обзор системы</li>
+                <li data-page="live"><i class="fas fa-microphone-lines"></i> Живой контроль</li>
+                <li data-page="scanner"><i class="fas fa-file-audio"></i> Сканирование файлов</li>
+                <li data-page="compare"><i class="fas fa-balance-scale"></i> Сравнение моделей</li>
+                <li data-page="settings"><i class="fas fa-cog"></i> Настройки</li>
+            </ul>
+            <div class="status-indicator">
+                <div class="dot online"></div>
+                <span>Движок активен</span>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="content">
+            <!-- Dashboard Page -->
+            <section id="dashboard" class="page active">
+                <header>
+                    <h1>Обзор системы</h1>
+                    <p>Мониторинг угроз и статистика в реальном времени</p>
+                </header>
+                
+                <div class="stats-grid">
+                    <div class="stat-card glass">
+                        <span class="label">Средняя задержка</span>
+                        <span class="value">0.6 мс</span>
+                    </div>
+                    <div class="stat-card glass">
+                        <span class="label">Обнаружение ботов</span>
+                        <span class="value">96.6%</span>
+                    </div>
+                    <div class="stat-card glass">
+                        <span class="label">Безопасные звонки</span>
+                        <span class="value">100%</span>
+                    </div>
+                </div>
+
+                <div class="main-card glass">
+                    <h3>Последняя активность</h3>
+                    <div id="activity-list">
+                        <!-- Activity items will be injected here -->
+                        <div class="activity-item">
+                            <i class="fas fa-check-circle human"></i>
+                            <div class="details">
+                                <span class="title">Человеческий голос подтверждён</span>
+                                <span class="time">2 минуты назад</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Live Guard Page -->
+            <section id="live" class="page">
+                <header>
+                    <h1>Живой контроль</h1>
+                    <p>Мониторинг микрофона для обнаружения синтетических голосовых паттернов</p>
+                </header>
+                <div class="live-container">
+                    <div class="visualizer-card glass">
+                        <canvas id="waveform"></canvas>
+                        <div class="controls">
+                            <button id="start-mic" class="btn-primary"><i class="fas fa-play"></i> Запустить мониторинг</button>
+                        </div>
+                    </div>
+                    <div id="live-verdict" class="verdict-card glass hidden">
+                        <div class="verdict-icon"></div>
+                        <h2 id="verdict-text">АНАЛИЗ...</h2>
+                        <div class="progress-container">
+                            <div id="bot-probability" class="progress-bar"></div>
+                        </div>
+                        <span id="prob-text">0% Уверенность (бот)</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Model Comparison Page -->
+            <section id="compare" class="page">
+                <header>
+                    <h1>Сравнение моделей</h1>
+                    <p>Сравнительный анализ классификации с разным количеством признаков</p>
+                </header>
+                
+                <div class="compare-setup glass">
+                    <h3>1. Выберите тип записей</h3>
+                    <div class="type-selector">
+                        <label class="type-option">
+                            <input type="radio" name="record-type" value="real" checked>
+                            <span class="type-label">
+                                <i class="fas fa-user"></i>
+                                Реальные записи (человеческий голос)
+                            </span>
+                        </label>
+                        <label class="type-option">
+                            <input type="radio" name="record-type" value="fake">
+                            <span class="type-label">
+                                <i class="fas fa-robot"></i>
+                                Синтетические записи (TTS/Deepfake)
+                            </span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="compare-setup glass">
+                    <h3>2. Загрузите файлы для сравнения</h3>
+                    <div class="drop-zone glass" id="compare-drop-zone">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <p>Перетащите аудиофайлы или нажмите для выбора</p>
+                        <p class="hint">Поддерживаются форматы: .wav, .mp3, .m4a</p>
+                        <input type="file" id="compare-file-input" hidden accept=".wav,.mp3,.m4a" multiple>
+                    </div>
+                    <div id="compare-file-list" class="file-list" style="display: none;"></div>
+                    <button id="compare-analyze-btn" class="btn-primary" style="display: none; margin-top: 15px;">
+                        <i class="fas fa-chart-bar"></i> Сравнить модели
+                    </button>
+                </div>
+                
+                <div id="compare-results" class="compare-results" style="display: none;">
+                    <div class="compare-summary glass">
+                        <h3>Итоговая точность моделей</h3>
+                        <div class="accuracy-grid" id="accuracy-grid">
+                        </div>
+                    </div>
+                    
+                    <div class="compare-table-container glass">
+                        <h3>Детальные результаты по файлам</h3>
+                        <table class="compare-table" id="compare-files-table">
+                            <thead>
+                                <tr>
+                                    <th>Файл</th>
+                                    <th>MFCC 40</th>
+                                    <th>MFCC 80</th>
+                                    <th>MFCC 120</th>
+                                    <th>MFCC 176</th>
+                                </tr>
+                            </thead>
+                            <tbody id="compare-files-body">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- File Scanner Page -->
+            <section id="scanner" class="page">
+                <header>
+                    <h1>Сканирование файлов</h1>
+                    <p>Загрузите аудиофайлы for глубокого форензик-анализа</p>
+                </header>
+                <div class="drop-zone glass" id="drop-zone">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <p>Перетащите аудиофайлы или нажмите для выбора</p>
+                    <p class="hint">Поддерживаются форматы: .wav, .mp3, .m4a</p>
+                    <input type="file" id="file-input" hidden accept=".wav,.mp3,.m4a" multiple>
+                </div>
+                <div class="scanner-controls" id="scanner-controls" style="display: none;">
+                    <button id="analyze-btn" class="btn-primary"><i class="fas fa-search"></i> Анализировать все файлы</button>
+                    <button id="download-csv-btn" class="btn-secondary" style="display: none;"><i class="fas fa-download"></i> Скачать CSV</button>
+                    <span id="file-count" class="file-count"></span>
+                </div>
+                <div id="scan-results" class="results-list"></div>
+            </section>
+
+            <!-- Settings Page -->
+            <section id="settings" class="page">
+                <header>
+                    <h1>Настройки</h1>
+                    <p>Настройка движка обнаружения и уведомлений</p>
+                </header>
+                <div class="main-card glass">
+                    <div class="settings-group">
+                        <label><i class="fas fa-sliders"></i> Чувствительность обнаружения (Порог)</label>
+                        <input type="range" id="threshold-range" min="0.1" max="0.9" step="0.05" value="0.7">
+                        <div class="range-value" id="threshold-display">0.70</div>
+                        <p class="hint">Более высокие значения делают обнаружение более строгим.</p>
+                    </div>
+
+                    <div class="settings-group">
+                        <label><i class="fas fa-microphone"></i> Устройство аудиовхода</label>
+                        <select id="device-select" class="glass-select">
+                            <!-- Devices will be loaded here -->
+                        </select>
+                    </div>
+
+                    <div class="settings-group">
+                        <label class="toggle-label" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                            <span><i class="fas fa-bell"></i> Включить уведомления</span>
+                            <input type="checkbox" id="notify-toggle" checked>
+                        </label>
+                    </div>
+
+                    <button id="save-settings" class="btn-primary" style="width: 100%; margin-top: 20px;">Сохранить изменения</button>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
